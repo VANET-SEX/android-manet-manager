@@ -1,10 +1,7 @@
-android-manet-manager
+android-vanet-sex
 =====================
 
-SPAN - Android Manet Manager
-
-Google Play:
-https://play.google.com/store/apps/details?id=org.span
+Android VANET Smartphone EXperiment
 
 Obtaining Custom Kernels
 ========================
