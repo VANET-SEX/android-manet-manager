@@ -9,9 +9,7 @@ import java.util.Set;
 
 import org.span.service.core.ManetService;
 import org.span.service.core.ManetService.AdhocStateEnum;
-import org.span.service.routing.Node;
 import org.span.service.system.ManetConfig;
-
 
 import android.content.BroadcastReceiver;
 import android.content.ComponentName;
@@ -47,7 +45,6 @@ public class ManetHelper {
 	private Context context = null;
 	
 	private Set<ManetObserver> manetObservers = null;
-	private Set<LogObserver> logObservers = null;
 	
 	public SharedPreferences settings = null;
 	
@@ -56,7 +53,6 @@ public class ManetHelper {
 	public ManetHelper(Context context) {
 		this.context = context;
 		manetObservers = new HashSet<ManetObserver>();
-		logObservers = new HashSet<LogObserver>();
 		
         // create the intent receiver that will be used to listen to status broadcasts
         intentFilter = new IntentFilter();
@@ -64,8 +60,6 @@ public class ManetHelper {
         intentFilter.addAction(ManetService.ACTION_SERVICE_STOPPED);
         intentFilter.addAction(ManetService.ACTION_ADHOC_STATE_UPDATED);
         intentFilter.addAction(ManetService.ACTION_CONFIG_UPDATED);
-        intentFilter.addAction(ManetService.ACTION_LOG_UPDATED);
-        intentFilter.addAction(ManetService.ACTION_PEERS_UPDATED);
         
         intentReceiver = new ManetBroadcastReceiver();
         context.registerReceiver(intentReceiver, intentFilter);
@@ -78,15 +72,6 @@ public class ManetHelper {
 	public void unregisterObserver(ManetObserver observer) {
 		manetObservers.remove(observer);
 	}
-	
-	public void registerLogger(LogObserver observer) {
-		logObservers.add(observer);
-	}
-	
-	public void unregisterLogger(LogObserver observer) {
-		logObservers.remove(observer);
-	}
-	
 	
 	// status methods
 	
@@ -175,14 +160,6 @@ public class ManetHelper {
 		sendMessage(ManetService.QUERY_MANET_CONFIG);
 	}
 	
-	public void sendPeersQuery() {
-		sendMessage(ManetService.QUERY_PEERS);
-	}
-	
-	public void sendRoutingInfoQuery() {
-		sendMessage(ManetService.QUERY_ROUTING_INFO);
-	}
-	
 	private void sendMessage(int what) {
 		if(sendMessenger == null) {
 			Log.e("ManetHelper::sendMessage", "You must connect to the ManetService before sending messages to it!");
@@ -223,16 +200,6 @@ public class ManetHelper {
 		    	for(ManetObserver observer : manetObservers) {
 					observer.onConfigUpdated(config);
 				}
-		    }  else if(action.equals(ManetService.ACTION_LOG_UPDATED)) {
-		    	String content = data.getString(ManetService.LOG_KEY);
-		    	for(LogObserver observer : logObservers) {
-					observer.onLogUpdated(content);
-				}
-		    }  else if(action.equals(ManetService.ACTION_PEERS_UPDATED)) {
-		        // Log.i("ManetBroadcastReceiver", "ACTION_PEERS_UPDATED");
-		        for(ManetObserver observer : manetObservers) {
-		            observer.onPeersUpdated((HashSet<Node>)data.getSerializable(ManetService.PEERS_KEY));
-		        }
 		    }
 		 }
 	};
@@ -256,20 +223,6 @@ public class ManetHelper {
 					ManetConfig config = (ManetConfig)data.getSerializable(ManetService.CONFIG_KEY);
 					for(ManetObserver observer : manetObservers) {
 						observer.onConfigUpdated(config);
-					} 
-					break;
-					
-				case ManetService.QUERY_PEERS:
-					HashSet<Node> peers = (HashSet<Node>)data.getSerializable(ManetService.PEERS_KEY);
-					for(ManetObserver observer : manetObservers) {
-						observer.onPeersUpdated(peers);
-					} 
-					break;
-					
-				case ManetService.QUERY_ROUTING_INFO:
-					String routingInfo = data.getString(ManetService.INFO_KEY);
-					for(ManetObserver observer : manetObservers) {
-						observer.onRoutingInfoUpdated(routingInfo);
 					} 
 					break;
 			}

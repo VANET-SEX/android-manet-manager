@@ -21,19 +21,15 @@
  */
 package org.span.manager;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 
-import org.json.JSONArray;
-import org.json.JSONException;
 import org.span.R;
 import org.span.service.core.ManetService.AdhocStateEnum;
 import org.span.service.system.CoreTask;
 import org.span.service.system.DeviceConfig;
 import org.span.service.system.ManetConfig;
-import org.span.service.system.ManetConfig.AdhocModeEnum;
 import org.span.service.system.ManetConfig.WifiChannelEnum;
 import org.span.service.system.ManetConfig.WifiEncryptionAlgorithmEnum;
 import org.span.service.system.ManetConfig.WifiEncryptionSetupMethodEnum;
@@ -45,10 +41,8 @@ import android.app.ProgressDialog;
 import android.content.DialogInterface;
 import android.content.SharedPreferences;
 import android.content.SharedPreferences.OnSharedPreferenceChangeListener;
-import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
-import android.os.Message;
 import android.preference.CheckBoxPreference;
 import android.preference.EditTextPreference;
 import android.preference.ListPreference;
@@ -148,8 +142,7 @@ public class ChangeSettingsActivity extends PreferenceActivity implements OnShar
     	
     	// wifi group
     	wifiGroupPref = (PreferenceGroup)findPreference("wifiprefs");
-		boolean bluetoothOn = manetcfg.isUsingBluetooth();
-		wifiGroupPref.setEnabled(!bluetoothOn);
+//		wifiGroupPref.setEnabled(true);
     	
 		// wifi encryption algorithm
 		WifiEncryptionAlgorithmEnum encAlgorithm = manetcfg.getWifiEncryptionAlgorithm();
@@ -241,41 +234,6 @@ public class ChangeSettingsActivity extends PreferenceActivity implements OnShar
         	txpowerPreference.setValueIndex(manetcfg.getWifiTxpower().ordinal());
         }
         
-        
-        // bluetooth group        
-		// disable bluetooth adhoc if not supported by the kernel
-        if (true) { // !manetcfg.isBluetoothSupported() // TODO: disable until tested
-        	PreferenceGroup btGroup = (PreferenceGroup)findPreference("btprefs");
-        	btGroup.setEnabled(false);
-        }
-		
-		// bluetooth
-		// NOTE: bluetooth dependencies are specified in the layout XML
-		// CheckBoxPreference bluetoothCheckboxPref = (CheckBoxPreference)findPreference("bluetoothonpref");
-        
-        // bluetooth keep wifi
-        CheckBoxPreference btKeepWifiCheckBoxPref = (CheckBoxPreference)findPreference("bluetoothkeepwifipref");
-        if (Integer.parseInt(Build.VERSION.SDK) < Build.VERSION_CODES.ECLAIR) {
-        	PreferenceGroup btGroup = (PreferenceGroup)findPreference("btprefs");
-        	if (btKeepWifiCheckBoxPref != null) {
-        		btGroup.removePreference(btKeepWifiCheckBoxPref);
-        	}
-        } else {
-        	btKeepWifiCheckBoxPref.setChecked(!manetcfg.isWifiDisabledWhenUsingBluetooth());
-        }
-        
-        // bluetooth discoverable
-    	CheckBoxPreference btdiscoverablePreference = (CheckBoxPreference)findPreference("bluetoothdiscoverablepref");
-        if (Integer.parseInt(Build.VERSION.SDK) < Build.VERSION_CODES.ECLAIR) {
-        	PreferenceGroup btGroup = (PreferenceGroup)findPreference("btprefs");
-        	if (btdiscoverablePreference != null) {
-        		btGroup.removePreference(btdiscoverablePreference);
-        	}
-        } else {
-        	btdiscoverablePreference.setChecked(manetcfg.isBluetoothDiscoverableWhenInAdhocMode());
-        }
-        
-        
         // ip address
         EditTextPreference ipAddressEditTextPref = (EditTextPreference)findPreference("ippref");
         Validation.setupIpAddressValidator(ipAddressEditTextPref);
@@ -286,21 +244,6 @@ public class ChangeSettingsActivity extends PreferenceActivity implements OnShar
         Validation.setupIpAddressValidator(dnsServerEditTextPref);
         dnsServerEditTextPref.setText(manetcfg.getDnsServer());        
         
-        // routing protocol
-        String currRoutingProtocol = manetcfg.getRoutingProtocol();
-    	List<String> routingProtocolList = CoreTask.getRoutingProtocols();
-    	String[] routingProtocols = new String[routingProtocolList.size()];
-    	routingProtocolList.toArray(routingProtocols);
-        
-    	ListPreference routingProtocolPreference = (ListPreference)findPreference("routingprotocolpref");
-    	routingProtocolPreference.setEntries(routingProtocols);
-    	routingProtocolPreference.setEntryValues(routingProtocols);
-    	routingProtocolPreference.setValue(currRoutingProtocol);
-        
-        // routing ignore list
-        JSONArray array = new JSONArray(manetcfg.getRoutingIgnoreList());
-        sharedPreferences.edit().putString("ignorepref", array.toString()).commit();
-                
         // wifi interface
         String currInterface = manetcfg.getWifiInterface();
         String defaultInterface = DeviceConfig.getWifiInterface(manetcfg.getDeviceType());
@@ -412,46 +355,6 @@ public class ChangeSettingsActivity extends PreferenceActivity implements OnShar
 	    	String dnsServer = sharedPreferences.getString("dnspref", ManetConfig.DNS_SERVER_DEFAULT);
 	    	manetcfg.setDnsServer(dnsServer);
     	}
-    	else if (key.equals("bluetoothonpref")) {
-    		final Boolean bluetoothOn = sharedPreferences.getBoolean("bluetoothonpref", 
-    				ManetConfig.ADHOC_MODE_DEFAULT == AdhocModeEnum.BLUETOOTH);
-    		if (bluetoothOn) {
-    			manetcfg.setAdhocMode(AdhocModeEnum.BLUETOOTH);
-    		} else {
-    			manetcfg.setAdhocMode(AdhocModeEnum.WIFI);
-    		}
-    		updateFlag = true;
-    	}
-    	else if (key.equals("bluetoothkeepwifipref")) {
-    		Boolean btKeepWifi = sharedPreferences.getBoolean("bluetoothkeepwifipref", !ManetConfig.BLUETOOTH_DISABLE_WIFI_DEFAULT);
-    		manetcfg.setDisableWifiWhenUsingBluetooth(!btKeepWifi);
-    	}
-    	else if (key.equals("bluetoothdiscoverablepref")) {
-    		Boolean btDiscoverable = sharedPreferences.getBoolean("bluetoothdiscoverablepref", ManetConfig.BLUETOOTH_DISCOVERABLE_DEFAULT);
-    		manetcfg.setBlutoothDiscoverableWhenInAdhocMode(btDiscoverable);
-    	}
-    	else if (key.equals("routingprotocolpref")) {
-    		String routingProtocol = sharedPreferences.getString("routingprotocolpref", ManetConfig.ROUTING_PROTOCOL_DEFAULT);
-    		manetcfg.setRoutingProtocol(routingProtocol);
-    	}
-    	else if (key.equals("ignorepref")) {
-    		List<String> ignoreList = new ArrayList<String>();
-			try {
-				JSONArray array = new JSONArray(sharedPreferences.getString("ignorepref", "[]"));
-				for (int i = 0 ; i < array.length(); i++){ 
-					ignoreList.add(array.get(i).toString());
-				} 
-			} catch (JSONException e) {
-				e.printStackTrace();
-			}
-			manetcfg.setRoutingIgnoreList(ignoreList);
-    	} 
-    	else if (key.equals("gatewaypref")) {
-    		String gatewayInterface = sharedPreferences.getString("gatewaypref", 
-    				ManetConfig.GATEWAY_INTERFACE_DEFAULT.toString());
-    		manetcfg.setGatewayInterface(gatewayInterface);
-    		updateFlag = true;
-    	}
 		else if (key.equals("screenonpref")) {
     		Boolean screenOn = sharedPreferences.getBoolean("screenonpref", ManetConfig.SCREEN_ON_DEFAULT);
     		manetcfg.setScreenOnWhenInAdhocMode(screenOn);
@@ -540,25 +443,27 @@ public class ChangeSettingsActivity extends PreferenceActivity implements OnShar
     	updateConfig(key);
     }
     
-    Handler restartingDialogHandler = new Handler(){
-        public void handleMessage(Message msg) {
-        	if (msg.what == 0) {
-        		showDialog(ID_DIALOG_RESTARTING);
-        	} else {
-        		dismissDialog(ID_DIALOG_RESTARTING);
-        	}
-        	super.handleMessage(msg);
-        	System.gc();
-        }
-    };
-    
-   Handler displayToastMessageHandler = new Handler() {
-        public void handleMessage(Message msg) {
-       		if (msg.obj != null) {
-       			app.displayToastMessage((String)msg.obj);
-       		}
-        	super.handleMessage(msg);
-        	System.gc();
-        }
-    };
+    // TODO: Remove unused code.
+//    Handler restartingDialogHandler = new Handler(){
+//        public void handleMessage(Message msg) {
+//        	if (msg.what == 0) {
+//        		showDialog(ID_DIALOG_RESTARTING);
+//        	} else {
+//        		dismissDialog(ID_DIALOG_RESTARTING);
+//        	}
+//        	super.handleMessage(msg);
+//        	System.gc();
+//        }
+//    };
+
+    // TODO: Remove unused code.
+//   Handler displayToastMessageHandler = new Handler() {
+//        public void handleMessage(Message msg) {
+//       		if (msg.obj != null) {
+//       			app.displayToastMessage((String)msg.obj);
+//       		}
+//        	super.handleMessage(msg);
+//        	System.gc();
+//        }
+//    };
 }

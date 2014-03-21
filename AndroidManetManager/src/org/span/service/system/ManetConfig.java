@@ -5,13 +5,10 @@
 package org.span.service.system;
 
 import java.io.Serializable;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.TreeMap;
 
 import org.json.JSONArray;
-import org.json.JSONException;
-import org.span.service.routing.OlsrProtocol;
 
 
 
@@ -83,37 +80,37 @@ public class ManetConfig implements Serializable {
 		return strvals;
 	}
 	
-	public static enum AdhocModeEnum {
-		WIFI("wifi", "wifi"),
-		BLUETOOTH("bluetooth", "bluetooth");
-
-		private String text;
-		private String desc;
-		AdhocModeEnum(String text, String desc) {
-			this.text = text;
-			this.desc = desc;
-		}
-		public String toString() {
-			return this.text;
-		}
-		public String getDescription() {
-			return this.desc;
-		}
-		public static AdhocModeEnum fromString(String name) {
-		    return getEnumFromString(AdhocModeEnum.class, name);
-		}
-		public static String[] stringValues() {
-			return getStringValuesFromEnum(AdhocModeEnum.class);
-		}
-		public static String[] descriptionValues() {
-			AdhocModeEnum vals[] = AdhocModeEnum.values();
-			String strvals[] = new String[vals.length];
-			for (int i = 0; i < vals.length; i++) {
-				strvals[i] = vals[i].getDescription();
-			}
-			return strvals;
-		}
-	}
+//	public static enum AdhocModeEnum {
+//		WIFI("wifi", "wifi"),
+//		BLUETOOTH("bluetooth", "bluetooth");
+//
+//		private String text;
+//		private String desc;
+//		AdhocModeEnum(String text, String desc) {
+//			this.text = text;
+//			this.desc = desc;
+//		}
+//		public String toString() {
+//			return this.text;
+//		}
+//		public String getDescription() {
+//			return this.desc;
+//		}
+//		public static AdhocModeEnum fromString(String name) {
+//		    return getEnumFromString(AdhocModeEnum.class, name);
+//		}
+//		public static String[] stringValues() {
+//			return getStringValuesFromEnum(AdhocModeEnum.class);
+//		}
+//		public static String[] descriptionValues() {
+//			AdhocModeEnum vals[] = AdhocModeEnum.values();
+//			String strvals[] = new String[vals.length];
+//			for (int i = 0; i < vals.length; i++) {
+//				strvals[i] = vals[i].getDescription();
+//			}
+//			return strvals;
+//		}
+//	}
 
 	public static enum WifiTxpowerEnum {
 		/*
@@ -301,8 +298,7 @@ public class ManetConfig implements Serializable {
 	
 	// defaults
 	public static final String DEVICE_TYPE_KEY_DEFAULT = DeviceConfig.DEVICE_GENERIC;
-	public static final AdhocModeEnum ADHOC_MODE_DEFAULT = AdhocModeEnum.WIFI;
-	public static final String ROUTING_PROTOCOL_DEFAULT = OlsrProtocol.NAME;
+//	public static final AdhocModeEnum ADHOC_MODE_DEFAULT = AdhocModeEnum.WIFI;
 	public static final String ROUTING_IGNORE_LIST_DEFAULT = "[]";
 	public static final String WIFI_INTERFACE_DEFAULT = "eth0";
 	public static final String WIFI_DRIVER_DEFAULT = WIFI_DRIVER_WEXT;
@@ -319,9 +315,9 @@ public class ManetConfig implements Serializable {
 	public static final boolean ADHOC_FIX_PERSIST_DEFAULT = false;
 	public static final boolean ADHOC_FIX_ROUTE_DEFAULT = false;
 	
-	public static final boolean BLUETOOTH_KERNEL_SUPPORT_DEFAULT = false;
-	public static final boolean BLUETOOTH_DISABLE_WIFI_DEFAULT = false;
-	public static final boolean BLUETOOTH_DISCOVERABLE_DEFAULT = false;
+//	public static final boolean BLUETOOTH_KERNEL_SUPPORT_DEFAULT = false;
+//	public static final boolean BLUETOOTH_DISABLE_WIFI_DEFAULT = false;
+//	public static final boolean BLUETOOTH_DISCOVERABLE_DEFAULT = false;
 	
 	public static final String GATEWAY_INTERFACE_DEFAULT = GATEWAY_INTERFACE_NONE;
 	
@@ -356,9 +352,7 @@ public class ManetConfig implements Serializable {
 		map.put(WIFI_INTERFACE_KEY,			WIFI_INTERFACE_DEFAULT);
 		map.put(WIFI_DRIVER_KEY,			WIFI_DRIVER_DEFAULT);
 			
-		map.put(ADHOC_MODE_KEY, 			ADHOC_MODE_DEFAULT.toString());
-		map.put(ROUTING_PROTOCOL_KEY, 		ROUTING_PROTOCOL_DEFAULT);
-		map.put(ROUTING_IGNORE_LIST_KEY,    ROUTING_IGNORE_LIST_DEFAULT);
+//		map.put(ADHOC_MODE_KEY, 			ADHOC_MODE_DEFAULT.toString());
 		map.put(WIFI_ENCRYPTION_ALGORITHM_KEY, WIFI_ENCRYPTION_ALGORITHM_DEFAULT.toString());
 		map.put(WIFI_ENCRYPTION_PASSWORD_KEY, WIFI_ENCRYPTION_PASSWORD_DEFAULT);
 		map.put(WIFI_ESSID_KEY,				WIFI_ESSID_DEFAULT);
@@ -373,9 +367,9 @@ public class ManetConfig implements Serializable {
 		map.put(ADHOC_FIX_PERSIST_KEY, 		Boolean.toString(ADHOC_FIX_PERSIST_DEFAULT));
 		map.put(ADHOC_FIX_ROUTE_KEY, 		Boolean.toString(ADHOC_FIX_ROUTE_DEFAULT));
 		
-		map.put(BLUETOOTH_KERNEL_SUPPORT_KEY, Boolean.toString(BLUETOOTH_KERNEL_SUPPORT_DEFAULT));
-		map.put(BLUETOOTH_DISABLE_WIFI_KEY, Boolean.toString(BLUETOOTH_DISABLE_WIFI_DEFAULT));
-		map.put(BLUETOOTH_DISCOVERABLE_KEY, Boolean.toString(BLUETOOTH_DISCOVERABLE_DEFAULT));
+//		map.put(BLUETOOTH_KERNEL_SUPPORT_KEY, Boolean.toString(BLUETOOTH_KERNEL_SUPPORT_DEFAULT));
+//		map.put(BLUETOOTH_DISABLE_WIFI_KEY, Boolean.toString(BLUETOOTH_DISABLE_WIFI_DEFAULT));
+//		map.put(BLUETOOTH_DISCOVERABLE_KEY, Boolean.toString(BLUETOOTH_DISCOVERABLE_DEFAULT));
 		
 		map.put(USER_ID_KEY, 				USER_ID_DEFAULT);
 		
@@ -425,26 +419,9 @@ public class ManetConfig implements Serializable {
 		return map.get(IP_GATEWAY_KEY);
 	}
 	
-	public AdhocModeEnum getAdhocMode() {
-		return AdhocModeEnum.fromString(map.get(ADHOC_MODE_KEY));
-	}
-	
-	public String getRoutingProtocol() {
-		return map.get(ROUTING_PROTOCOL_KEY);
-	}
-	
-	public List<String> getRoutingIgnoreList() {
-		List<String> ignoreList = new ArrayList<String>();
-		try {
-			JSONArray array = new JSONArray(map.get(ROUTING_IGNORE_LIST_KEY));
-			for (int i = 0 ; i < array.length(); i++){ 
-				ignoreList.add(array.get(i).toString());
-			}
-		} catch (JSONException e) {
-			e.printStackTrace();
-		}
-		return ignoreList;
-	}
+//	public AdhocModeEnum getAdhocMode() {
+//		return AdhocModeEnum.fromString(map.get(ADHOC_MODE_KEY));
+//	}
 	
 	public String getWifiSsid() {
 		return map.get(WIFI_ESSID_KEY);
@@ -485,13 +462,13 @@ public class ManetConfig implements Serializable {
 		return getWifiEncryptionAlgorithm() != WifiEncryptionAlgorithmEnum.NONE;
 	}
 	
-	public boolean isUsingBluetooth() {
-		return getAdhocMode() == AdhocModeEnum.BLUETOOTH;
-	}
-	
-	public boolean isUsingWifi() {
-		return getAdhocMode() == AdhocModeEnum.WIFI;
-	}
+//	public boolean isUsingBluetooth() {
+//		return getAdhocMode() == AdhocModeEnum.BLUETOOTH;
+//	}
+//	
+//	public boolean isUsingWifi() {
+//		return getAdhocMode() == AdhocModeEnum.WIFI;
+//	}
 	
 	public boolean isWifiDisabledWhenUsingBluetooth() {
 		return Boolean.parseBoolean(map.get(BLUETOOTH_DISABLE_WIFI_KEY)); 
@@ -524,9 +501,9 @@ public class ManetConfig implements Serializable {
     	map.put(USER_ID_KEY, userId);
     }
 	
-	public void setAdhocMode(AdhocModeEnum mode) {
-		map.put(ADHOC_MODE_KEY, mode.toString());
-	}
+//	public void setAdhocMode(AdhocModeEnum mode) {
+//		map.put(ADHOC_MODE_KEY, mode.toString());
+//	}
 	
 	public void setRoutingProtocol(String protocol) {
 		map.put(ROUTING_PROTOCOL_KEY, protocol);

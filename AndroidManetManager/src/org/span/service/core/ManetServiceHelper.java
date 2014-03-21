@@ -26,31 +26,24 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.util.HashSet;
 import java.util.Hashtable;
 import java.util.List;
 
 import org.span.R;
 import org.span.service.core.ManetService.AdhocStateEnum;
-import org.span.service.routing.Node;
-import org.span.service.routing.OlsrProtocol;
-import org.span.service.routing.RoutingProtocol;
-import org.span.service.routing.SimpleProactiveProtocol;
-import org.span.service.system.BluetoothConfig;
-import org.span.service.system.BluetoothService;
 import org.span.service.system.CoreTask;
 import org.span.service.system.DeviceConfig;
 import org.span.service.system.DnsmasqConfig;
 import org.span.service.system.HostapdConfig;
 import org.span.service.system.ManetConfig;
-import org.span.service.system.ManetConfigHelper;
-import org.span.service.system.RoutingIgnoreListConfig;
-import org.span.service.system.TiWlanConf;
-import org.span.service.system.WpaSupplicant;
 import org.span.service.system.ManetConfig.WifiChannelEnum;
 import org.span.service.system.ManetConfig.WifiEncryptionSetupMethodEnum;
+import org.span.service.system.ManetConfigHelper;
+import org.span.service.system.TiWlanConf;
+import org.span.service.system.WpaSupplicant;
 
-
+import android.app.AlarmManager;
+import android.app.PendingIntent;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
@@ -61,8 +54,6 @@ import android.os.Environment;
 import android.os.Handler;
 import android.os.Message;
 import android.os.PowerManager;
-import android.app.AlarmManager;
-import android.app.PendingIntent;
 import android.util.Log;
 import android.widget.Toast;
 
@@ -94,29 +85,20 @@ public class ManetServiceHelper {
 	private AlarmManager alarmManager = null;
 	private AlarmReceiver alarmReceiver = null;
 
-	// bluetooth
-	private BluetoothService bluetoothService = null;
-	
 	// DNS-Server-Update Thread
 	// private Thread dnsUpdateThread = null;
     
 	// original states
 	private static boolean origWifiState = false;
-	private static boolean origBluetoothState = false;
 	
 	// files
 	private ManetConfig manetcfg = null; 		// properties file
-	private BluetoothConfig btcfg = null; 		// blue-up.sh script
 	private DnsmasqConfig dnsmasqcfg = null;	// file used by ./bin/dnsmasq
 	private HostapdConfig hostapdcfg = null;	// file used by /system/bin/hostapd (droidx, blade)
 	private WpaSupplicant wpasupplicant = null;	// file used by /system/bin/wpa_supplicant (encryption)
 	private TiWlanConf tiwlan = null;			// file used by /system/bin/wlan (HTC dream, HTC legend)
-	private RoutingIgnoreListConfig routingignorelistcfg = null; // file used by routing protocol
 	
 	private ManetConfigHelper manetcfgHelper = null;
-	
-	// routing protocol
-	private RoutingProtocol routingProtocol = null;
 	
 	// MANET service
 	private ManetService service = null;
@@ -172,20 +154,10 @@ public class ManetServiceHelper {
     	// hostapd config
     	hostapdcfg = new HostapdConfig();
     	
-    	// ignore list config
-    	routingignorelistcfg = new RoutingIgnoreListConfig();
-    	
-    	// blue-up.sh
-    	btcfg = new BluetoothConfig();        
-            	
         // wifi management
         wifiManager = (WifiManager) service.getSystemService(Context.WIFI_SERVICE);
         wifiLock = wifiManager.createWifiLock(WifiManager.WIFI_MODE_FULL, "ADHOC_WIFI_LOCK");
 
-        // bluetooth service
-        bluetoothService = BluetoothService.getInstance();
-        bluetoothService.setApplication(service.getApplication());
-                
         // startup check; prevent performing these actions multiple times
         if (startupCheckPerformed == false) {
 	        startupCheckPerformed = true;
@@ -229,39 +201,12 @@ public class ManetServiceHelper {
         
         return true;
 	}
-	
-	// TODO: consider eventually using a factory class to mix-and-match protocol modules based on settings
-	private RoutingProtocol createRoutingProtocol() {
-		if (manetcfg.getRoutingProtocol().equals(SimpleProactiveProtocol.NAME)) {
-			return new SimpleProactiveProtocol();
-		} else if (manetcfg.getRoutingProtocol().equals(OlsrProtocol.NAME)) {
-			return new OlsrProtocol();
-		} else {
-			return null;
-		}
-	}
+
 	
 	private void displayToastMessage(String message) {
 		Toast.makeText(service, message, Toast.LENGTH_LONG).show();
 	}
-	
-	private boolean setBluetoothState(boolean enabled) {
-		boolean connected = false;
-		if (enabled == false) {
-			this.bluetoothService.stopBluetooth();
-			return false;
-		}
-		origBluetoothState = this.bluetoothService.isBluetoothEnabled();
-		if (origBluetoothState == false) {
-			connected = this.bluetoothService.startBluetooth();
-			if (connected == false) {
-				Log.d(TAG, "Enable bluetooth failed");
-			}
-		} else {
-			connected = true;
-		}
-		return connected;
-	}
+
 	
 	private void updateConfigs(ManetConfig cfg) {
 		
@@ -276,8 +221,6 @@ public class ManetServiceHelper {
 		WifiChannelEnum wifiChannel = manetcfg.getWifiChannel();
 		String ipNetwork = manetcfg.getIpNetwork();
 		String ipGateway = manetcfg.getIpGateway();
-		List<String> routingIgnoreList = manetcfg.getRoutingIgnoreList();
-		
 		
 		// WEP encryption
 		if (wifiEncEnabled) {
@@ -336,12 +279,7 @@ public class ManetServiceHelper {
 			}
 			hostapdcfg.write();
 		}
-		
-		// blue-up.sh
-		btcfg.set(ipGateway);
-		btcfg.write();
 
-		
 		// TODO: need to find a better method to identify if the used device is a HTC Dream aka T-Mobile G1
 		if (deviceType.equals(DeviceConfig.DEVICE_DREAM)) {
 			Hashtable<String,String> values = new Hashtable<String,String>();
@@ -349,15 +287,6 @@ public class ManetServiceHelper {
 			values.put("dot11DesiredChannel", wifiChannel.toString());
 			tiwlan.write(values);
 		}
-		
-        // create initial routing protocol
-		if (routingProtocol == null) {
-			routingProtocol = createRoutingProtocol();
-		}
-        
-        // routing ignore list
-        routingignorelistcfg.set(routingIgnoreList);
-        routingignorelistcfg.write();
         
 		Log.d(TAG, "Creation of configuration files took ==> " + (System.currentTimeMillis()-startStamp) + " milliseconds.");
 		
@@ -375,21 +304,12 @@ public class ManetServiceHelper {
 		
 		boolean cont = true;
 		
-		if (manetcfg.isUsingBluetooth()) {
-    		if (!setBluetoothState(true)){
-    			cont = false;
-    		}
-			if (manetcfg.isWifiDisabledWhenUsingBluetooth()) {
-	        	disableWifi();
-			}
-        } else {
-        	// disable the default wifi interface to set it in ad-hoc mode
-        	// if this device is a gateway and the default interface isn't selected for ad-hoc mode,
-        	// then keep the default wifi interface enabled
-        	String defaultInterface = DeviceConfig.getWifiInterface(manetcfg.getDeviceType());
-        	if (manetcfg.getWifiInterface().equals(defaultInterface)) {
-        		disableWifi();
-        	}
+        // disable the default wifi interface to set it in ad-hoc mode
+        // if this device is a gateway and the default interface isn't selected for ad-hoc mode,
+        // then keep the default wifi interface enabled
+        String defaultInterface = DeviceConfig.getWifiInterface(manetcfg.getDeviceType());
+        if (manetcfg.getWifiInterface().equals(defaultInterface)) {
+        	disableWifi();
         }
 		
         if (manetcfg.isScreenOnWhenInAdhocMode()) {
@@ -425,15 +345,9 @@ public class ManetServiceHelper {
         
     	if (cont) {
     		if (CoreTask.startAdhocMode(manetcfg)) {
-	    		routingProtocol = createRoutingProtocol();
-	        	if (routingProtocol.start(manetcfg)) {
-		    		// this.dnsUpdateEnable(dns, true);
-	
-	        		// initial DNS server setting
-	        		CoreTask.setProp("net.dns1", manetcfg.getDnsServer());
-	        		
-		    		acquireLocks();
-	        	}
+	        	// initial DNS server setting
+	        	CoreTask.setProp("net.dns1", manetcfg.getDnsServer());
+		    	acquireLocks();
     		}
     	}
 	        
@@ -459,28 +373,16 @@ public class ManetServiceHelper {
     		alarmReceiver = null;
     	}
     	
-    	routingProtocol.stop();
-    	
     	CoreTask.stopAdhocMode(manetcfg);
     	
 		// this.notificationManager.cancelAll();
 		
-		// put wifi and bluetooth back, if applicable
-		if (manetcfg.isUsingBluetooth()) {
-			if (origBluetoothState == false) {
-				setBluetoothState(false);
-			}
-			if (manetcfg.isWifiDisabledWhenUsingBluetooth()) {
-				enableWifi();
-			} 
-		} else {
-			// if the wifi interface set in ad-hoc mode is not the default interface, 
-			// then there is no need to enable the default interface
-	    	String defaultInterface = DeviceConfig.getWifiInterface(manetcfg.getDeviceType());
-	    	if (manetcfg.getWifiInterface().equals(defaultInterface)) {
-	    		enableWifi();
-	    	}
-		}
+		// if the wifi interface set in ad-hoc mode is not the default interface, 
+		// then there is no need to enable the default interface
+	    String defaultInterface = DeviceConfig.getWifiInterface(manetcfg.getDeviceType());
+	    if (manetcfg.getWifiInterface().equals(defaultInterface)) {
+	    	enableWifi();
+	    }
 		
     	// send broadcast
     	updateAdhocState(null);
@@ -512,28 +414,20 @@ public class ManetServiceHelper {
     private void updateAdhocState(Message rxmessage) {
     	
     	try {
-	    	boolean routingProtocolRunning = false;
-	    	String routingProtocolName = "Routing";
-	    	if (routingProtocol != null) {
-	    		routingProtocolRunning = routingProtocol.isRunning();
-	    		routingProtocolName = routingProtocol.getName();
-	    	}
-	    	
 	    	boolean adHocModeEnabled = CoreTask.isAdHocModeEnabled(manetcfg);
 			
 	    	AdhocStateEnum prevAdhocState = adhocState;
 	    	
-			if (adHocModeEnabled == true && routingProtocolRunning == true) {
+			if (adHocModeEnabled == true) {
 				adhocState = AdhocStateEnum.STARTED;
 				adhocInfo = "Ad-Hoc mode is running.";
-			} else if (adHocModeEnabled == false && routingProtocolRunning == false) {
+			} else if (adHocModeEnabled == false) {
 				adhocState = AdhocStateEnum.STOPPED;
 				adhocInfo = "Ad-Hoc mode is not running.";
 			} else {
 				adhocState = AdhocStateEnum.UNKNOWN;
 				adhocInfo = "Your device is currently in an unknown state.\n" +
-					"Ad-Hoc mode enabled: " + adHocModeEnabled + "\n" +
-					routingProtocolName + " protocol running: " + routingProtocolRunning;
+					"Ad-Hoc mode enabled: " + adHocModeEnabled;
 			}
 			
 			if (prevAdhocState != adhocState) {
@@ -562,16 +456,6 @@ public class ManetServiceHelper {
     	}
     }
     
-    public synchronized void updateLog(String content) {
-		Bundle data = new Bundle();
-		data.putString(ManetService.LOG_KEY, content);
-    	
-		// send broadcast
-		Intent intent = new Intent(ManetService.ACTION_LOG_UPDATED);
-		intent.putExtras(data);
-    	service.sendBroadcast(intent);
-    }
-    
     public void handleManetConfigQuery(Message rxmessage) {
     	try {
     		Bundle data = new Bundle();
@@ -587,42 +471,7 @@ public class ManetServiceHelper {
     		e.printStackTrace();
     	}
     }
-    
-    public void handlePeersQuery(Message rxmessage) {
-    	try {
-        	HashSet<Node> peers = routingProtocol.getPeers();
-    		
-    		Bundle data = new Bundle();
-    		data.putSerializable(ManetService.PEERS_KEY, peers);
-	    	
-	    	// send response
-	    	Message msg = new Message();
-	    	msg.what = rxmessage.what;
-	    	msg.setData(data);
-	    	rxmessage.replyTo.send(msg);
-	    	
-    	} catch (Exception e) {
-    		e.printStackTrace();
-    	}
-    }
-    
-    public void handleRoutingInfoQuery(Message rxmessage) {
-    	try {
-        	String info = routingProtocol.getInfo();
-    		
-    		Bundle data = new Bundle();
-    		data.putString(ManetService.INFO_KEY, info);
-	    	
-	    	// send response
-	    	Message msg = new Message();
-	    	msg.what = rxmessage.what;
-	    	msg.setData(data);
-	    	rxmessage.replyTo.send(msg);
-	    	
-    	} catch (Exception e) {
-    		e.printStackTrace();
-    	}
-    }
+
         
     /*
     private String getAdhocNetworkDevice() {
@@ -1015,16 +864,5 @@ public class ManetServiceHelper {
  			}
     	 }
     };
-    
-    public void updatePeers() {
-        // Log.i("ManetServiceHelper","updatePeers");
-        Bundle data = new Bundle();
-        data.putSerializable(ManetService.PEERS_KEY, routingProtocol.getPeers());
-
-        // send broadcast
-        Intent intent = new Intent(ManetService.ACTION_PEERS_UPDATED);
-        intent.putExtras(data);
-        service.sendBroadcast(intent);
-    }
 
 }

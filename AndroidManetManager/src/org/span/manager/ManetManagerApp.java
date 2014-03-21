@@ -21,26 +21,14 @@
  */
 package org.span.manager;
 
-import java.util.HashSet;
-import java.util.TreeSet;
-
 import org.span.service.ManetHelper;
 import org.span.service.ManetObserver;
 import org.span.service.core.ManetService.AdhocStateEnum;
-import org.span.service.routing.Node;
 import org.span.service.system.ManetConfig;
 
-
 import android.app.Application;
-import android.app.Notification;
-import android.app.NotificationManager;
-import android.app.PendingIntent;
-import android.content.Context;
-import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageInfo;
-import android.os.Handler;
-import android.os.Message;
 import android.preference.PreferenceManager;
 import android.util.Log;
 import android.view.View;
@@ -90,8 +78,6 @@ public class ManetManagerApp extends Application implements ManetObserver {
 		manet = new ManetHelper(this);
 		manet.registerObserver(this);
 		
-		// init activity helpers to start observing before activities are created
-		ViewLogActivityHelper.setApplication(this);
 	}
 
 	@Override
@@ -189,16 +175,6 @@ public class ManetManagerApp extends Application implements ManetObserver {
 		
 		String device = manetcfg.getDeviceType();
 		Log.d(TAG, "device: " + device); // DEBUG
-	}
-
-	@Override
-	public void onPeersUpdated(HashSet<Node> peers) {
-		// Log.d(TAG, "onPeersUpdated()"); // DEBUG
-	}
-	
-	@Override
-	public void onRoutingInfoUpdated(String info) {
-		// Log.d(TAG, "onRoutingInfoUpdated()"); // DEBUG
 	}
 	
 	@Override

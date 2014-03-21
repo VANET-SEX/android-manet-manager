@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="global_app_name">MANET Manager</string>
-    <string name="global_app_view_log_name">MANET Manager Log</string>
-    <string name="global_app_send_message_name">MANET Manager Send Message</string>
-    <string name="global_app_view_message_name">MANET Manager View Message</string>
-    <string name="global_app_view_routing_info_name">MANET Manager Routing Info</string>
-    <string name="global_app_edit_ignore_list_name">MANET Manager Ignore List</string>
-    <string name="global_app_share_name">MANET Manager Share App</string>
+    <string name="global_app_name">VANET Sex</string>
+    <string name="global_app_view_log_name">VANET Sex Log</string>
+    <string name="global_app_send_message_name">VANET Sex Send Message</string>
+    <string name="global_app_view_message_name">VANET Sex View Message</string>
+    <string name="global_app_view_routing_info_name">VANET Sex Routing Info</string>
+    <string name="global_app_edit_ignore_list_name">VANET Sex Ignore List</string>
+    <string name="global_app_share_name">VANET Sex Share App</string>
 	<string name="global_app_installed">Binaries and config-files installed!</string>
 	<string name="global_app_error_restartsecwifi">Unable to restart secured wifi!</string>
 	<string name="global_app_adhoc_running">Ad-Hoc mode is currently running ...</string>
@@ -53,6 +53,8 @@
     <string name="main_layout_ip">IP: </string>
     <string name="main_layout_ssid_placeholder">[SSID]</string>
     <string name="main_layout_ssid">SSID: </string>
+    <string name="main_layout_btn_eventA">Event A</string>
+    <string name="main_layout_btn_eventB">Event B</string>
     <string name="setup_activity_reinstall">(Re)-Install binaries/configs</string>
     <string name="setup_activity_restart_adhoc_title">Restart Ad-Hoc Mode</string>
     <string name="setup_activity_restart_adhoc_message">Please wait while restarting...</string>

@@ -26,8 +26,6 @@ public class ManetService extends Service {
 	public final static String ACTION_SERVICE_STOPPED		= "org.span.service.intent.action.SERVICE_STOPPED";
 	public final static String ACTION_ADHOC_STATE_UPDATED	= "org.span.service.intent.action.ADHOC_STATE_UPDATED";
 	public final static String ACTION_CONFIG_UPDATED		= "org.span.service.intent.action.CONFIG_UPDATED";
-	public final static String ACTION_LOG_UPDATED			= "org.span.service.intent.action.LOG_UPDATED";
-	public final static String ACTION_PEERS_UPDATED         = "org.span.service.intent.action.PEERS_UPDATED";
 
     public static final int COMMAND_REGISTER 	  = 0;    
     public static final int COMMAND_UNREGISTER	  = 1;
@@ -39,15 +37,11 @@ public class ManetService extends Service {
     
     public static final int QUERY_ADHOC_STATUS	= 10;
     public static final int QUERY_MANET_CONFIG 	= 11;
-    public static final int QUERY_PEERS			= 12;
-    public static final int QUERY_ROUTING_INFO	= 13;
     
     public static final String STATE_KEY 	= "state";
     public static final String INFO_KEY		= "info";
     public static final String CONFIG_KEY 	= "config";
-    public static final String PEERS_KEY 	= "peers";
     public static final String FILE_KEY		= "filename";
-    public static final String LOG_KEY		= "log";
     
     public static enum AdhocStateEnum {
     	STARTED, STOPPED, UNKNOWN
@@ -192,14 +186,6 @@ public class ManetService extends Service {
 					
 				case QUERY_MANET_CONFIG:
 					helper.handleManetConfigQuery(rxmessage);
-					break;
-					
-				case QUERY_PEERS:
-					helper.handlePeersQuery(rxmessage);
-					break;
-					
-				case QUERY_ROUTING_INFO:
-					helper.handleRoutingInfoQuery(rxmessage);
 					break;
 					
 				default:                    
