@@ -21,20 +21,11 @@
  */
 package org.span.manager;
 
-import java.net.InetAddress;
-import java.net.NetworkInterface;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.List;
-
-import org.apache.http.conn.util.InetAddressUtils;
 import org.span.R;
 import org.span.service.ManetObserver;
 import org.span.service.core.ManetService.AdhocStateEnum;
 import org.span.service.legal.EulaHelper;
 import org.span.service.legal.EulaObserver;
-import org.span.service.routing.Node;
-import org.span.service.system.CoreTask;
 import org.span.service.system.ManetConfig;
 
 import android.R.drawable;
@@ -42,9 +33,7 @@ import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.Dialog;
 import android.app.ProgressDialog;
-import android.bluetooth.BluetoothAdapter;
 import android.content.BroadcastReceiver;
-import android.content.ComponentName;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
@@ -60,17 +49,15 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.SubMenu;
 import android.view.View;
-import android.view.View.OnClickListener;
-import android.view.WindowManager.LayoutParams;
-import android.view.Window;
-import android.view.WindowManager;
 import android.view.animation.Animation;
 import android.view.animation.ScaleAnimation;
-import android.widget.ImageView;
+import android.widget.Button;
+import android.widget.CompoundButton;
+import android.widget.CompoundButton.OnCheckedChangeListener;
+import android.widget.ListView;
 import android.widget.RelativeLayout;
-import android.widget.TableRow;
 import android.widget.TextView;
-import android.widget.Toast;
+import android.widget.ToggleButton;
 
 public class MainActivity extends Activity implements EulaObserver, ManetObserver {
 	
@@ -88,18 +75,17 @@ public class MainActivity extends Activity implements EulaObserver, ManetObserve
 		
 	private ProgressDialog progressDialog = null;
 
-	private ImageView startBtn = null;
-	private OnClickListener startBtnListener = null;
-	private ImageView stopBtn = null;
-	private OnClickListener stopBtnListener = null;
-	private ImageView radioModeImage = null;
+	private ToggleButton toggleBtn_startStopAdHocMode;
+	
 	private RelativeLayout batteryTemperatureLayout = null;
 	private RelativeLayout headerMainLayout = null;
 	
 	private TextView batteryTemperature = null;
 	
-	private TableRow startTblRow = null;
-	private TableRow stopTblRow = null;
+	private Button btn_eventA;
+	private Button btn_eventB;
+	
+	private ListView listView;
 	
 	private ScaleAnimation animation = null;
 	
@@ -107,6 +93,8 @@ public class MainActivity extends Activity implements EulaObserver, ManetObserve
 	private TextView tvSSID = null;
 	
 	private int currDialogId = -1;
+
+	private OnCheckedChangeListener toggleBtn_startStopAdHocModeListener;
 			
     /** Called when the activity is first created. */
     @Override
@@ -120,15 +108,15 @@ public class MainActivity extends Activity implements EulaObserver, ManetObserve
         app.manet.registerObserver(this);
 
         // init table rows
-        startTblRow = (TableRow)findViewById(R.id.startAdhocRow);
-        stopTblRow = (TableRow)findViewById(R.id.stopAdhocRow);
-        radioModeImage = (ImageView)findViewById(R.id.radioModeImage);
         batteryTemperatureLayout = (RelativeLayout)findViewById(R.id.layoutBatteryTemp);
         headerMainLayout = (RelativeLayout)findViewById(R.id.layoutHeaderMain);
         
         batteryTemperature = (TextView)findViewById(R.id.batteryTempText);
         tvIP = (TextView)findViewById(R.id.tvIP);
         tvSSID = (TextView)findViewById(R.id.tvSSID);
+        btn_eventA = (Button)findViewById(R.id.btn_eventA);
+        btn_eventB = (Button)findViewById(R.id.btn_eventB);
+        listView = (ListView)findViewById(R.id.listView);
 
         // Update the IP and SSID display immediate when the Activity is shown and
         // when the orientation is changed.
@@ -145,31 +133,29 @@ public class MainActivity extends Activity implements EulaObserver, ManetObserve
         animation.setRepeatCount(1);
         animation.setRepeatMode(Animation.REVERSE);
 
-        // start button
-        startBtn = (ImageView) findViewById(R.id.startAdhocBtn);
-        startBtnListener = new OnClickListener() {
-        	@Override
-			public void onClick(View v) {
-				Log.d(TAG, "StartBtn pressed ...");
-		    	showDialog(ID_DIALOG_STARTING);
-		    	currDialogId = ID_DIALOG_STARTING;
-		    	app.manet.sendStartAdhocCommand();
-			}
-		};
-		startBtn.setOnClickListener(this.startBtnListener);
-
-		// stop button
-		stopBtn = (ImageView) findViewById(R.id.stopAdhocBtn);
-		stopBtnListener = new OnClickListener() {
+		// start / stop toggle button
+        toggleBtn_startStopAdHocMode = (ToggleButton)findViewById(R.id.toggleBtn_startStopAdHocMode);
+        toggleBtn_startStopAdHocModeListener = new CompoundButton.OnCheckedChangeListener() {
 			@Override
-			public void onClick(View v) {
-				Log.d(TAG, "StopBtn pressed ...");
-		    	showDialog(ID_DIALOG_STOPPING);
-		    	currDialogId = ID_DIALOG_STOPPING;
-		    	app.manet.sendStopAdhocCommand();
+			public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+
+				if(isChecked) {
+					// start AdHoc
+					Log.d(TAG, "StartBtn pressed ...");
+			    	showDialog(ID_DIALOG_STARTING);
+			    	currDialogId = ID_DIALOG_STARTING;
+			    	app.manet.sendStartAdhocCommand();
+			    	
+				} else {
+					// stop AdHoc
+					Log.d(TAG, "StopBtn pressed ...");
+			    	showDialog(ID_DIALOG_STOPPING);
+			    	currDialogId = ID_DIALOG_STOPPING;
+			    	app.manet.sendStopAdhocCommand();
+				}
 			}
 		};
-		stopBtn.setOnClickListener(this.stopBtnListener);
+		toggleBtn_startStopAdHocMode.setOnCheckedChangeListener(toggleBtn_startStopAdHocModeListener);
 		
    		// start messenger service so that it runs even if no active activities are bound to it
    		startService(new Intent(this, MessageService.class));
@@ -244,11 +230,8 @@ public class MainActivity extends Activity implements EulaObserver, ManetObserve
 	}
 	
 	private static final int MENU_CHANGE_SETTINGS 		= 0;
-	private static final int MENU_VIEW_LOG 				= 1;
-	private static final int MENU_ABOUT 				= 2;
-	private static final int MENU_SEND_MESSAGE			= 3;
-	private static final int MENU_VIEW_ROUTING_INFO		= 4;
-	private static final int MENU_SHARE					= 5;
+	private static final int MENU_ABOUT 				= 1;
+	private static final int MENU_SEND_MESSAGE			= 2;
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
@@ -258,10 +241,6 @@ public class MainActivity extends Activity implements EulaObserver, ManetObserve
     	SubMenu about = menu.addSubMenu(0, MENU_ABOUT, 0, getString(R.string.main_activity_about));
     	about.setIcon(drawable.ic_menu_info_details);
     	SubMenu send = menu.addSubMenu(0, MENU_SEND_MESSAGE, 0, getString(R.string.main_activity_send_message));
-    	SubMenu info = menu.addSubMenu(0, MENU_VIEW_ROUTING_INFO, 0, getString(R.string.main_activity_view_routing_info));
-    	// info.setIcon(drawable.ic_menu_agenda);
-    	// SubMenu log = menu.addSubMenu(0, MENU_VIEW_LOG, 0, getString(R.string.main_activity_show_log));
-    	SubMenu share = menu.addSubMenu(0, MENU_SHARE, 0, getString(R.string.main_activity_share));
     	return supRetVal;
     }
     
@@ -277,17 +256,8 @@ public class MainActivity extends Activity implements EulaObserver, ManetObserve
 	    	case MENU_ABOUT :
 	    		openAboutDialog();
 	    		break;
-	    	case MENU_VIEW_LOG :
-	    		ViewLogActivity.open(this);
-	    		break;
 	    	case MENU_SEND_MESSAGE :
 	    		SendMessageActivity.open(this);
-	    		break;
-	    	case MENU_VIEW_ROUTING_INFO :
-	    		ViewRoutingInfoActivity.open(this);
-	    		break;
-	    	case MENU_SHARE :
-	    		ShareActivity.open(this);
 	    		break;
 	    }
     	return supRetVal;
@@ -460,25 +430,20 @@ public class MainActivity extends Activity implements EulaObserver, ManetObserve
         })
         .show();  		
    	}
-
-  	private void showRadioMode(boolean usingBluetooth) {
-  		if (usingBluetooth) {
-  			radioModeImage.setImageResource(R.drawable.bluetooth);
-  		} else {
-  			radioModeImage.setImageResource(R.drawable.wifi);
-  		}
-  	}
   	
   	private void showAdhocMode(AdhocStateEnum state) {
   		headerMainLayout.setVisibility(View.VISIBLE);
 		
 		if (state == AdhocStateEnum.STARTED) {
-			startTblRow.setVisibility(View.GONE);
-			stopTblRow.setVisibility(View.VISIBLE);
+			
+			// Set toggle btn to off.
+			toggleBtn_startStopAdHocMode.setOnCheckedChangeListener(null);
+			toggleBtn_startStopAdHocMode.setChecked(true);
+			toggleBtn_startStopAdHocMode.setOnCheckedChangeListener(toggleBtn_startStopAdHocModeListener);
 			
 			// animation
 			if (animation != null) {
-				stopBtn.startAnimation(animation);
+				toggleBtn_startStopAdHocMode.startAnimation(animation);
 			}
 					
 			/*
@@ -501,17 +466,20 @@ public class MainActivity extends Activity implements EulaObserver, ManetObserve
 			// app.showStartNotification();
 			
 		} else if (state == AdhocStateEnum.STOPPED) {
-			startTblRow.setVisibility(View.VISIBLE);
-			stopTblRow.setVisibility(View.GONE);
+			
+			// Set toggle btn to off.
+			toggleBtn_startStopAdHocMode.setOnCheckedChangeListener(null);
+			toggleBtn_startStopAdHocMode.setChecked(false);
+			toggleBtn_startStopAdHocMode.setOnCheckedChangeListener(toggleBtn_startStopAdHocModeListener);
 			
 			// animation
 			if (animation != null) {
-				startBtn.startAnimation(this.animation);
+				toggleBtn_startStopAdHocMode.startAnimation(this.animation);
 			}
 						
 		} else { // AdhocStateEnum.UNKNOWN
-			startTblRow.setVisibility(View.VISIBLE);
-			stopTblRow.setVisibility(View.VISIBLE);
+//			startTblRow.setVisibility(View.VISIBLE);
+//			stopTblRow.setVisibility(View.VISIBLE);
 		}
 		
  		/*
@@ -568,7 +536,6 @@ public class MainActivity extends Activity implements EulaObserver, ManetObserve
 			app.manet.connectToService();
         } else {
     		showAdhocMode(app.adhocState);
-    		showRadioMode(app.manetcfg.isUsingBluetooth());
         }
 	}
   	
@@ -615,19 +582,7 @@ public class MainActivity extends Activity implements EulaObserver, ManetObserve
 	public void onConfigUpdated(ManetConfig manetcfg) {
 		Log.d(TAG, "onConfigUpdated()"); // DEBUG
 		
-		showRadioMode(manetcfg.isUsingBluetooth());
-		
 		displayIPandSSID(manetcfg);
-	}
-	
-	@Override
-	public void onPeersUpdated(HashSet<Node> peers) {
-		Log.d(TAG, "onPeersUpdated()"); // DEBUG
-	}
-	
-	@Override
-	public void onRoutingInfoUpdated(String info) {
-		// Log.d(TAG, "onRoutingInfoUpdated()"); // DEBUG
 	}
 	
 	@Override

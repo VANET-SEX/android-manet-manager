@@ -37,8 +37,6 @@ import java.util.HashSet;
 import java.util.Hashtable;
 
 import org.span.service.CircularStringBuffer;
-import org.span.service.routing.OlsrProtocol;
-import org.span.service.routing.SimpleProactiveProtocol;
 
 
 import android.util.Log;
@@ -94,15 +92,6 @@ public class CoreTask {
     	}
     	
     	return false;
-    }
-    
-    public static ArrayList<String> getRoutingProtocols() {
-    	ArrayList<String> routingProtocols = new ArrayList<String>();
-    	
-    	routingProtocols.add(SimpleProactiveProtocol.NAME);
-    	routingProtocols.add(OlsrProtocol.NAME);
-
-    	return routingProtocols;
     }
     
     public static ArrayList<String> readLinesFromFile(String filename) {

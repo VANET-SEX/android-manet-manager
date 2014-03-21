@@ -53,23 +53,7 @@
             android:summary="@string/setup_layout_interface_summary"
             android:dialogTitle="@string/setup_layout_interface_dialog_title" /> 
 	</PreferenceCategory>
-    <PreferenceCategory android:title="@string/setup_layout_category_bluetooth"
-        android:key="btprefs">
-        <CheckBoxPreference
-        	android:key="bluetoothonpref"
-            android:title="@string/setup_layout_usebluetooth"
-            android:summary="@string/setup_layout_usebluetooth_summary" />
-        <CheckBoxPreference
-            android:key="bluetoothkeepwifipref"
-            android:dependency="bluetoothonpref"
-            android:title="@string/setup_layout_dontdisablewifi"
-            android:summary="@string/setup_layout_dontdisablewifi_summary" />
-        <CheckBoxPreference
-			android:key="bluetoothdiscoverablepref"
-            android:dependency="bluetoothonpref"
-            android:title="@string/setup_layout_discoverable"
-            android:summary="@string/setup_layout_discoverable_summary" />               
-    </PreferenceCategory>
+
 	<PreferenceCategory android:title="@string/setup_layout_category_ip">
 	    <EditTextPreference
 	        android:key="ippref"  
@@ -84,25 +68,6 @@
             android:dialogTitle="@string/setup_layout_dns_dialog_title"
             android:inputType="phone" />
 	</PreferenceCategory>
-	<PreferenceCategory android:title="@string/setup_layout_category_routing"
-	    android:key="routingprefs">
-	    <ListPreference  
-			android:key="routingprotocolpref"  
-			android:title="@string/setup_layout_routing_protocol"  
-			android:summary="@string/setup_layout_routing_protocol_summary"  
-			android:dialogTitle="@string/setup_layout_routing_protocol_dialog_title" />
-        <PreferenceScreen
-            android:key="ignorepref" 
-            android:title="@string/setup_layout_ignore"
-            android:summary="@string/setup_layout_ignore_summary" >
-            <intent android:action="android.intent.action.EDIT_IGNORE_LIST_ACTION" />
-        </PreferenceScreen>
-        <ListPreference  
-			android:key="gatewaypref"  
-			android:title="@string/setup_layout_gateway"
-			android:summary="@string/setup_layout_gateway_summary"
-            android:dialogTitle="@string/setup_layout_gateway_dialog_title" /> 
-    </PreferenceCategory>
 	<PreferenceCategory android:title="@string/setup_layout_category_misc">
 	     <CheckBoxPreference
         	android:key="screenonpref"

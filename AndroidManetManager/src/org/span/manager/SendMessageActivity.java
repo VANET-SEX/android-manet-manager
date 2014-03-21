@@ -14,7 +14,6 @@ import java.util.TreeSet;
 import org.span.R;
 import org.span.service.ManetObserver;
 import org.span.service.core.ManetService.AdhocStateEnum;
-import org.span.service.routing.Node;
 import org.span.service.system.ManetConfig;
 
 import android.app.Activity;
@@ -28,6 +27,7 @@ import android.widget.AdapterView.OnItemSelectedListener;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.SimpleAdapter;
 import android.widget.Spinner;
 
 public class SendMessageActivity extends Activity implements OnItemSelectedListener, ManetObserver {
@@ -42,7 +42,7 @@ public class SendMessageActivity extends Activity implements OnItemSelectedListe
     private Button btnSend = null;
     private Button btnCancel = null;
     
-    private String selection = null;
+    private String selection = "192.168.1.0";
     
 	/** Called when the activity is first created. */
 	@Override
@@ -60,10 +60,12 @@ public class SendMessageActivity extends Activity implements OnItemSelectedListe
 	    etMessage = (EditText) findViewById(R.id.etMessage);
 	    
 	    app.manet.registerObserver(this);
-	    app.manet.sendPeersQuery();
 	    
 	    spnDestination = (Spinner) findViewById(R.id.spnDestination);
 	    spnDestination.setOnItemSelectedListener(this);
+	    
+	    spnDestination.setAdapter(new ArrayAdapter<String>(this,
+	    		android.R.layout.simple_spinner_item, new String[]{PROMPT, "192.168.1.0"}));
 		
 	    btnSend = (Button) findViewById(R.id.btnSend);
 	    btnSend.setOnClickListener(new View.OnClickListener() {
@@ -260,35 +262,6 @@ public class SendMessageActivity extends Activity implements OnItemSelectedListe
 		// TODO Auto-generated method stub
 		
 	}
-	
-	@Override
-	public void onRoutingInfoUpdated(String info) {
-		// TODO Auto-generated method stub
-		
-	}
-
-	@Override
-	public void onPeersUpdated(HashSet<Node> peers) {
-		// provide option to enter peer address
-		Set<String> options = new TreeSet<String>();
-		options.add(app.manetcfg.getIpBroadcast() + " (Broadcast)");
-		options.add(PROMPT);
-		
-		String option = null;
-		for (Node peer : peers) {
-			if (peer.userId != null) {
-				option = peer.addr + " (" + peer.userId + ")";
-			} else {
-				option = peer.addr;	
-			}
-			options.add(option);
-		}
-		
-		ArrayAdapter adapter = new ArrayAdapter(this, android.R.layout.simple_spinner_item, options.toArray());
-		adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-		spnDestination.setAdapter(adapter);
-	}
-
 
 	@Override
 	public void onError(String error) {
