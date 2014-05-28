@@ -265,23 +265,23 @@ public class ChangeSettingsActivity extends PreferenceActivity implements OnShar
     		currInterface = defaultInterface;
     	}
         
-        // routing gateway
-        String currGatewayInterface = manetcfg.getGatewayInterface();
-    	interfaceList.remove(currInterface); // remove ad-hoc interface
-    	interfaceList.add(0, ManetConfig.GATEWAY_INTERFACE_NONE);
-    	interfaces = new String[interfaceList.size()];
-    	interfaceList.toArray(interfaces);
-        
-    	ListPreference gatewayPreference = (ListPreference)findPreference("gatewaypref");
-    	gatewayPreference.setEntries(interfaces);
-    	gatewayPreference.setEntryValues(interfaces);
-    	gatewayPreference.setValue(currGatewayInterface);
-    	
-    	if (interfaceList.contains(currGatewayInterface)) {
-    		gatewayPreference.setValue(currGatewayInterface);
-    	} else {
-    		gatewayPreference.setValue(ManetConfig.GATEWAY_INTERFACE_NONE);
-    	}
+//        // routing gateway
+//        String currGatewayInterface = manetcfg.getGatewayInterface();
+//    	interfaceList.remove(currInterface); // remove ad-hoc interface
+//    	interfaceList.add(0, ManetConfig.GATEWAY_INTERFACE_NONE);
+//    	interfaces = new String[interfaceList.size()];
+//    	interfaceList.toArray(interfaces);
+//        
+//    	ListPreference gatewayPreference = (ListPreference)findPreference("gatewaypref");
+//    	gatewayPreference.setEntries(interfaces);
+//    	gatewayPreference.setEntryValues(interfaces);
+//    	gatewayPreference.setValue(currGatewayInterface);
+//    	
+//    	if (interfaceList.contains(currGatewayInterface)) {
+//    		gatewayPreference.setValue(currGatewayInterface);
+//    	} else {
+//    		gatewayPreference.setValue(ManetConfig.GATEWAY_INTERFACE_NONE);
+//    	}
     	
     	
         // screen on

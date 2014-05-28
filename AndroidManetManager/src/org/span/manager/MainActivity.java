@@ -21,12 +21,21 @@
  */
 package org.span.manager;
 
+import java.util.List;
+import java.util.Map;
+
 import org.span.R;
 import org.span.service.ManetObserver;
 import org.span.service.core.ManetService.AdhocStateEnum;
 import org.span.service.legal.EulaHelper;
 import org.span.service.legal.EulaObserver;
 import org.span.service.system.ManetConfig;
+import org.span.service.vanetsex.VANETEvent;
+import org.span.service.vanetsex.VANETMessage;
+import org.span.service.vanetsex.VANETNode;
+import org.span.service.vanetsex.VANETObserver;
+import org.span.service.vanetsex.VANETService;
+import org.span.service.vanetsex.VANETStatisticsData;
 
 import android.R.drawable;
 import android.app.Activity;
@@ -34,15 +43,19 @@ import android.app.AlertDialog;
 import android.app.Dialog;
 import android.app.ProgressDialog;
 import android.content.BroadcastReceiver;
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.ServiceConnection;
 import android.net.ConnectivityManager;
 import android.net.wifi.WifiManager;
 import android.os.Bundle;
 import android.os.Handler;
+import android.os.IBinder;
 import android.os.Message;
+import android.text.Html;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.Menu;
@@ -51,12 +64,14 @@ import android.view.SubMenu;
 import android.view.View;
 import android.view.animation.Animation;
 import android.view.animation.ScaleAnimation;
+import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.CompoundButton;
 import android.widget.CompoundButton.OnCheckedChangeListener;
 import android.widget.ListView;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
+import android.widget.Toast;
 import android.widget.ToggleButton;
 
 public class MainActivity extends Activity implements EulaObserver, ManetObserver {
@@ -70,12 +85,16 @@ public class MainActivity extends Activity implements EulaObserver, ManetObserve
 	private static int ID_DIALOG_STOPPING 	= 1;
 	private static int ID_DIALOG_CONNECTING = 2;
 	private static int ID_DIALOG_CONFIG 	= 3;
+	private static int ID_DIALOG_STARTING_VANET_SERVICE    = 4;
+	private static int ID_DIALOG_STOPPING_VANET_SERVICE    = 5;
 	
 	private static ManetManagerApp app = null;
 		
 	private ProgressDialog progressDialog = null;
 
 	private ToggleButton toggleBtn_startStopAdHocMode;
+	private ToggleButton toggleBtn_startStopBeacon;
+	private ToggleButton toggleBtn_startStopVanet;
 	
 	private RelativeLayout batteryTemperatureLayout = null;
 	private RelativeLayout headerMainLayout = null;
@@ -84,8 +103,16 @@ public class MainActivity extends Activity implements EulaObserver, ManetObserve
 	
 	private Button btn_eventA;
 	private Button btn_eventB;
+	private Button btn_eventC;
+    private Button btn_eventD;
 	
 	private ListView listView;
+	private ListView listView_neighbors;
+	private ListView listView_events;
+	private TextView textView_neighbors_title;
+	private TextView textView_details;
+	private TextView textView_message_history_title;
+	private TextView textView_events_title;
 	
 	private ScaleAnimation animation = null;
 	
@@ -95,6 +122,15 @@ public class MainActivity extends Activity implements EulaObserver, ManetObserve
 	private int currDialogId = -1;
 
 	private OnCheckedChangeListener toggleBtn_startStopAdHocModeListener;
+
+	private VANETService vanetService = null;
+    private VANETMessagesAdapter vanetMessagesAdapter;
+    private ArrayAdapter<String> vanetNeighborsAdapter;
+    private VANETEventsAdapter vanetEventsAdapter;
+    
+    private boolean vanetUiInitialized = false;
+    
+    
 			
     /** Called when the activity is first created. */
     @Override
@@ -106,6 +142,12 @@ public class MainActivity extends Activity implements EulaObserver, ManetObserve
         
         app = (ManetManagerApp)getApplication();
         app.manet.registerObserver(this);
+        
+        // correct state of VANETService running status
+        boolean isVanetServiceRunning = app.isServiceRunning(VANETService.class);
+        if(isVanetServiceRunning != app.vanetPrefs.get_vanet_service_started()) {
+                app.vanetPrefs.edit().put_vanet_service_started(isVanetServiceRunning).commit();
+        }
 
         // init table rows
         batteryTemperatureLayout = (RelativeLayout)findViewById(R.id.layoutBatteryTemp);
@@ -116,7 +158,29 @@ public class MainActivity extends Activity implements EulaObserver, ManetObserve
         tvSSID = (TextView)findViewById(R.id.tvSSID);
         btn_eventA = (Button)findViewById(R.id.btn_eventA);
         btn_eventB = (Button)findViewById(R.id.btn_eventB);
+        btn_eventC = (Button)findViewById(R.id.btn_eventC);
+        btn_eventD = (Button)findViewById(R.id.btn_eventD);
         listView = (ListView)findViewById(R.id.listView);
+        listView_neighbors = (ListView)findViewById(R.id.listView_neighbors);
+        listView_events = (ListView)findViewById(R.id.listView_events);
+        textView_details = (TextView) findViewById(R.id.textView_details);
+        textView_neighbors_title = (TextView) findViewById(R.id.textView_neighbors_title);
+        textView_message_history_title = (TextView) findViewById(R.id.textView_message_history_title);
+        textView_events_title = (TextView) findViewById(R.id.textView_events_title);
+        
+        vanetMessagesAdapter = new VANETMessagesAdapter(this);
+        listView.setAdapter(vanetMessagesAdapter);
+        
+        vanetNeighborsAdapter = new ArrayAdapter<String>(this, R.layout.vanet_item_neighbor, R.id.textView1);
+        listView_neighbors.setAdapter(vanetNeighborsAdapter);
+        
+        vanetEventsAdapter = new VANETEventsAdapter(this);
+        listView_events.setAdapter(vanetEventsAdapter);
+        
+        textView_details.setText(Html.fromHtml(getString(R.string.main_layout_vanet_details, .0, 0, .0, 0, .0, 0, .0, 0)));
+        textView_neighbors_title.setText(Html.fromHtml(getString(R.string.main_layout_vanet_neighbors)));
+        textView_message_history_title.setText(Html.fromHtml(getString(R.string.main_layout_vanet_message_history)));
+        textView_events_title.setText(Html.fromHtml(getString(R.string.main_layout_vanet_events)));
 
         // Update the IP and SSID display immediate when the Activity is shown and
         // when the orientation is changed.
@@ -133,7 +197,7 @@ public class MainActivity extends Activity implements EulaObserver, ManetObserve
         animation.setRepeatCount(1);
         animation.setRepeatMode(Animation.REVERSE);
 
-		// start / stop toggle button
+		// start / stop ad-hoc mode toggle button
         toggleBtn_startStopAdHocMode = (ToggleButton)findViewById(R.id.toggleBtn_startStopAdHocMode);
         toggleBtn_startStopAdHocModeListener = new CompoundButton.OnCheckedChangeListener() {
 			@Override
@@ -151,11 +215,27 @@ public class MainActivity extends Activity implements EulaObserver, ManetObserve
 					Log.d(TAG, "StopBtn pressed ...");
 			    	showDialog(ID_DIALOG_STOPPING);
 			    	currDialogId = ID_DIALOG_STOPPING;
+			    	
+			    	stopService(new Intent(MainActivity.this, VANETService.class));
+			    	
 			    	app.manet.sendStopAdhocCommand();
 				}
 			}
 		};
 		toggleBtn_startStopAdHocMode.setOnCheckedChangeListener(toggleBtn_startStopAdHocModeListener);
+		
+		// start / stop vanet service toggle button
+        toggleBtn_startStopVanet = (ToggleButton)findViewById(R.id.toggleBtn_startStopVanet);
+        toggleBtn_startStopVanet.setVisibility(View.GONE);
+        
+		// start / stop beacon toggle button
+        toggleBtn_startStopBeacon = (ToggleButton)findViewById(R.id.toggleBtn_startStopBeacon);
+        toggleBtn_startStopBeacon.setVisibility(View.GONE);
+        
+        /*
+         * Initialization of vanet and beacon toggle btns will be done in method
+         * initVanetUi(). It will be called after the ManetConfig is received.
+         */
 		
    		// start messenger service so that it runs even if no active activities are bound to it
    		startService(new Intent(this, MessageService.class));
@@ -193,7 +273,16 @@ public class MainActivity extends Activity implements EulaObserver, ManetObserve
 			unregisterReceiver(this.intentReceiver);
 		} catch (Exception e) {
 			e.printStackTrace();
-		}    	
+		}
+		
+		if(vanetService != null) {
+		    vanetService.unregisterObserver(vanetObserver);
+		}
+		try {
+            unbindService(vanetServiceConnection);
+        } catch (Exception e) {
+            Log.e(TAG, e.getMessage(), e);
+        }
 	}
 
     @Override
@@ -229,9 +318,9 @@ public class MainActivity extends Activity implements EulaObserver, ManetObserve
         */
 	}
 	
-	private static final int MENU_CHANGE_SETTINGS 		= 0;
-	private static final int MENU_ABOUT 				= 1;
-	private static final int MENU_SEND_MESSAGE			= 2;
+	private static final int MENU_CHANGE_SETTINGS 	= 0;
+	private static final int MENU_ABOUT 			= 1;
+	private static final int MENU_SEND_MESSAGE		= 2;
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
@@ -286,7 +375,21 @@ public class MainActivity extends Activity implements EulaObserver, ManetObserve
 	    	progressDialog.setIndeterminate(false);
 	    	progressDialog.setCancelable(true);
 	        return progressDialog;  		
-    	} 
+    	} else if(id == ID_DIALOG_STARTING_VANET_SERVICE) {
+    	    progressDialog = new ProgressDialog(this);
+            progressDialog.setTitle(getString(R.string.main_activity_vanet_start_vanet_service));
+            progressDialog.setMessage(getString(R.string.main_activity_vanet_start_vanet_service));
+            progressDialog.setIndeterminate(false);
+            progressDialog.setCancelable(true);
+            return progressDialog;
+    	} else if(id == ID_DIALOG_STOPPING_VANET_SERVICE) {
+            progressDialog = new ProgressDialog(this);
+            progressDialog.setTitle(getString(R.string.main_activity_vanet_stop_vanet_service));
+            progressDialog.setMessage(getString(R.string.main_activity_vanet_stop_vanet_service));
+            progressDialog.setIndeterminate(false);
+            progressDialog.setCancelable(true);
+            return progressDialog;
+        }
     	return null;
     }
     
@@ -297,7 +400,11 @@ public class MainActivity extends Activity implements EulaObserver, ManetObserve
 	        return onCreateDialog(id);
     	} else if (id == ID_DIALOG_STOPPING) {
     		return onCreateDialog(id);		
-    	} else if (id == ID_DIALOG_CONNECTING) {
+    	} else if (id == ID_DIALOG_STARTING_VANET_SERVICE) {
+            return onCreateDialog(id);
+        } else if (id == ID_DIALOG_STOPPING_VANET_SERVICE) {
+            return onCreateDialog(id);      
+        } else if (id == ID_DIALOG_CONNECTING) {
     		return onCreateDialog(id);
     	} else if (id == ID_DIALOG_CONFIG) {
     		//Config load dialogue
@@ -583,11 +690,204 @@ public class MainActivity extends Activity implements EulaObserver, ManetObserve
 		Log.d(TAG, "onConfigUpdated()"); // DEBUG
 		
 		displayIPandSSID(manetcfg);
+		
+		// init vanet ui after IP address is known
+		if(vanetUiInitialized == false) {
+		    vanetUiInitialized = true;
+		    initVanetUi();
+		}
 	}
 	
 	@Override
 	public void onError(String error) {
 		Log.d(TAG, "onError()"); // DEBUG
 	}
+	
+	/*
+     * 
+     * VANET listeners
+     * 
+     */
+	private ServiceConnection vanetServiceConnection = new ServiceConnection() {
+
+        public void onServiceConnected(ComponentName className, IBinder binder) {
+            Log.d(TAG, "Connected to VANETService ....................................");
+            
+            // Reference to the vanet service.
+            VANETService.VANETServiceBinder b = (VANETService.VANETServiceBinder) binder;
+            vanetService = b.getService();
+            
+            // Enable the toggleBtn_startStopBeacon by setting a listener to it.
+            toggleBtn_startStopBeacon.setVisibility(View.VISIBLE);
+            toggleBtn_startStopBeacon.setChecked(vanetService.isBeaconRunning());
+            toggleBtn_startStopBeacon.setOnCheckedChangeListener(toggleBtn_startStopBeaconListener);
+            
+            // Register this activity as vanet service observer.
+            vanetService.registerObserver(vanetObserver);
+            
+            Toast.makeText(MainActivity.this, "Connected to VANETService",
+                    Toast.LENGTH_SHORT).show();
+            
+            removeDialog();
+        }
+
+        public void onServiceDisconnected(ComponentName className) {
+            Log.d(TAG, "Disonnected from VANETService ...................................");
+
+            vanetService.unregisterObserver(vanetObserver);
+            
+            toggleBtn_startStopBeacon.setOnCheckedChangeListener(null);
+            toggleBtn_startStopBeacon.setChecked(false);
+            toggleBtn_startStopBeacon.setVisibility(View.GONE);
+            
+            vanetService = null;
+            Toast.makeText(MainActivity.this, "Disconnected from VANETService",
+                    Toast.LENGTH_SHORT).show();
+            
+            removeDialog();
+        }
+    };
+    
+    VANETObserver vanetObserver = new VANETObserver() {
+        
+        @Override
+        public void onStatisticData(VANETStatisticsData statisticsData) {
+            textView_details.setText(Html.fromHtml(MainActivity.this.getString(
+                    R.string.main_layout_vanet_details,
+                    statisticsData.getBeaconsSentBytes()/1000f,
+                    statisticsData.getBeaconsSentPackets(),
+                    statisticsData.getBeaconsReceivedBytes()/1000f,
+                    statisticsData.getBeaconsReceivedPackets(),
+                    statisticsData.getEventsSentBytes()/1000f,
+                    statisticsData.getEventsSentPackets(),
+                    statisticsData.getEventsReceivedBytes()/1000f,
+                    statisticsData.getEventsReceivedPackets())));
+        }
+        
+        @Override
+        public void onNeighborListChanged(Map<String, VANETNode> neighborMap) {
+            vanetNeighborsAdapter.setNotifyOnChange(false);
+            vanetNeighborsAdapter.clear();
+            vanetNeighborsAdapter.addAll(neighborMap.keySet());
+            vanetNeighborsAdapter.notifyDataSetChanged();
+        }
+        
+        @Override
+        public void onMessageHistoryInit(List<VANETMessage> history) {
+            vanetMessagesAdapter.setData(history);
+        }
+        
+        @Override
+        public void onMessageHistoryDiffUpdate(List<VANETMessage> diffHistory) {
+            // The vanetMessagesAdapter already holds reference to the message
+            // history list which is updated with the diffHistory list. Just
+            // notify list about data change.
+            vanetMessagesAdapter.notifyDataSetChanged();
+        }
+        
+        @Override
+        public void onEventListChanged(List<VANETEvent> events) {
+            vanetEventsAdapter.setData(events);
+            vanetEventsAdapter.notifyDataSetChanged();
+        }
+        
+        @Override
+        public void onBeaconStateChanged(boolean started) {
+            toggleBtn_startStopBeacon.setOnCheckedChangeListener(null);
+            toggleBtn_startStopBeacon.setChecked(started);
+            toggleBtn_startStopBeacon.setOnCheckedChangeListener(toggleBtn_startStopBeaconListener);
+        }
+    };
+    
+    private OnCheckedChangeListener toggleBtn_startStopVanetListener = new CompoundButton.OnCheckedChangeListener() {
+        @Override
+        public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+
+            if(isChecked) {
+                // start AdHoc
+                Log.d(TAG, "Start Vanet service btn pressed ...");
+                
+                if(app.vanetPrefs.get_vanet_service_started() == false) {
+                    showDialog(ID_DIALOG_STARTING_VANET_SERVICE);
+                    currDialogId = ID_DIALOG_STARTING_VANET_SERVICE;
+                    
+                    startService(new Intent(MainActivity.this, VANETService.class));
+                    bindService(new Intent(MainActivity.this, VANETService.class), vanetServiceConnection, 0);
+                }
+                
+            } else {
+                // stop AdHoc
+                Log.d(TAG, "Stop Vanet service btn pressed ...");
+                showDialog(ID_DIALOG_STOPPING_VANET_SERVICE);
+                currDialogId = ID_DIALOG_STOPPING_VANET_SERVICE;
+          
+//                toggleBtn_startStopBeacon.setOnCheckedChangeListener(null);
+//                toggleBtn_startStopBeacon.setChecked(false);
+//                toggleBtn_startStopBeacon.setOnCheckedChangeListener(toggleBtn_startStopBeaconListener);
+                
+                stopService(new Intent(MainActivity.this, VANETService.class));
+            }
+        }
+    };
+    
+    private OnCheckedChangeListener toggleBtn_startStopBeaconListener = new CompoundButton.OnCheckedChangeListener() {
+        @Override
+        public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+
+            if(isChecked) {
+                // start AdHoc
+                Log.d(TAG, "Start Beacon btn pressed");
+                
+                if(vanetService != null) {
+//                    showDialog(ID_DIALOG_STARTING_VANET_SERVICE);
+//                    currDialogId = ID_DIALOG_STARTING_VANET_SERVICE;
+                    vanetService.startBeacon();
+                }
+                
+            } else {
+                // stop AdHoc
+                Log.d(TAG, "Stop Beacon btn pressed");
+//                showDialog(ID_DIALOG_STOPPING_VANET_SERVICE);
+//                currDialogId = ID_DIALOG_STOPPING_VANET_SERVICE;
+
+                if(vanetService != null) {
+                    vanetService.stopBeacon();
+                }
+            }
+        }
+    };
+	
+	/*
+	 * 
+	 * VANET methods
+	 * 
+	 */
+    private void initVanetUi() {
+        Log.i(TAG, "initVanetUi()");
+        
+        // Init the toggle btn with running state of the vanet service.
+        // If the vanet service running, try to bind to it.
+        // Further initialization will be done in binding callback methods in
+        // the ServiceConnection class.
+        toggleBtn_startStopVanet.setVisibility(View.VISIBLE);
+        if(app.vanetPrefs.get_vanet_service_started() == true) {
+            
+            toggleBtn_startStopVanet.setOnCheckedChangeListener(null);
+            toggleBtn_startStopVanet.setChecked(true);
+            toggleBtn_startStopVanet.setOnCheckedChangeListener(toggleBtn_startStopVanetListener);
+            
+            Log.d(TAG, "vanet service is on - try to bind ...............................");
+            bindService(new Intent(MainActivity.this, VANETService.class), vanetServiceConnection, 0);
+        
+        } else {
+            
+            Log.d(TAG, "vanet service is off ...............................");
+            
+            toggleBtn_startStopVanet.setOnCheckedChangeListener(null);
+            toggleBtn_startStopVanet.setChecked(false);
+            toggleBtn_startStopVanet.setOnCheckedChangeListener(toggleBtn_startStopVanetListener);
+        }
+    }
+    
 }
 

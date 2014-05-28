@@ -25,8 +25,13 @@ import org.span.service.ManetHelper;
 import org.span.service.ManetObserver;
 import org.span.service.core.ManetService.AdhocStateEnum;
 import org.span.service.system.ManetConfig;
+import org.span.service.vanetsex.VANETPrefs;
+import org.span.service.vanetsex.VANETService;
 
+import android.app.ActivityManager;
+import android.app.ActivityManager.RunningServiceInfo;
 import android.app.Application;
+import android.content.Context;
 import android.content.SharedPreferences;
 import android.content.pm.PackageInfo;
 import android.preference.PreferenceManager;
@@ -42,6 +47,8 @@ public class ManetManagerApp extends Application implements ManetObserver {
 	// preferences
 	public SharedPreferences prefs = null;
 	public SharedPreferences.Editor prefEditor = null;
+	
+	public VANETPrefs vanetPrefs = null;
 	
 	// MANET helper
 	public ManetHelper manet = null;
@@ -73,11 +80,13 @@ public class ManetManagerApp extends Application implements ManetObserver {
 		
         // preference editor
         prefEditor = prefs.edit();
-    	
+		
+		// VANET prefs
+        vanetPrefs = VANETPrefs.create(this);
+		
         // init MANET helper
 		manet = new ManetHelper(this);
 		manet.registerObserver(this);
-		
 	}
 
 	@Override
@@ -137,6 +146,16 @@ public class ManetManagerApp extends Application implements ManetObserver {
             Log.e(TAG, "Package name not found", e);
         }
         return version;
+    }
+    
+    public boolean isServiceRunning(Class serviceClass) {
+        ActivityManager manager = (ActivityManager) getSystemService(Context.ACTIVITY_SERVICE);
+        for (RunningServiceInfo service : manager.getRunningServices(Integer.MAX_VALUE)) {
+            if (serviceClass.getName().equals(service.service.getClassName())) {
+                return true;
+            }
+        }
+        return false;
     }
     
   
