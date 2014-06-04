@@ -1,5 +1,7 @@
 package org.span.service.vanetsex;
 
+import java.util.StringTokenizer;
+
 public class VANETUtils {
     
     final protected static char[] hexArray = "0123456789ABCDEF".toCharArray();
@@ -13,4 +15,22 @@ public class VANETUtils {
         return new String(hexChars);
     }
     
+    public static int getLastByteOfIpAddress(String strIp) {
+        String strLastByte = null;
+        if(strIp != null) {
+            StringTokenizer st = new StringTokenizer(strIp, ".");
+            
+            while(st.hasMoreElements()) {
+                strLastByte = (String)st.nextElement();
+            }
+        }
+        
+        int lastByte = -1;
+        try {
+            lastByte = Integer.parseInt(strLastByte);
+        } catch(Exception e) {
+        }
+        
+        return lastByte;
+    }
 }

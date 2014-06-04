@@ -79,21 +79,21 @@ public class VANETMessagesAdapter extends BaseAdapter {
             VANETEvent event = (VANETEvent) msg.getData();
             if (msg.isIncoming()) {
                 holder.textView_message.setText(msg.getStringAddressSource() + " ("
-                        + event.getStringOriginatorAddress() + ") " + event.getTypeTitle());
+                        + event.getStringOriginatorAddress() + ") " + event.getTypeTitle() + " SIZE:" + msg.getSizeInBytes());
                 holder.imageView_icon.setImageResource(R.drawable.vse_incoming);
             } else {
-                holder.textView_message.setText(msg.getStringAddressDestination() + " " + event.getTypeTitle());
+                holder.textView_message.setText(msg.getStringAddressDestination() + " " + event.getTypeTitle() + " SIZE:" + msg.getSizeInBytes());
                 holder.imageView_icon.setImageResource(R.drawable.vse_outgoing);
             }
 
         } else {
             if (msg.isIncoming()) {
                 holder.textView_message.setText("Unknow type: [" + Byte.toString(msg.getType()) + "] from: "
-                        + msg.getStringAddressSource());
+                        + msg.getStringAddressSource() + " SIZE:" + msg.getSizeInBytes());
                 holder.imageView_icon.setImageResource(R.drawable.vse_message_incoming);
             } else {
                 holder.textView_message.setText("Unknow type: [" + Byte.toString(msg.getType()) + "] to: "
-                        + msg.getStringAddressDestination());
+                        + msg.getStringAddressDestination() + " SIZE:" + msg.getSizeInBytes());
                 holder.imageView_icon.setImageResource(R.drawable.vse_message_outgoing);
             }
         }

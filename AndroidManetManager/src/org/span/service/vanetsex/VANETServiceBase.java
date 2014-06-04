@@ -4,14 +4,12 @@ import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.SocketException;
-import java.net.UnknownHostException;
-import java.nio.ByteBuffer;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Queue;
 import java.util.Set;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -19,16 +17,22 @@ import java.util.TimerTask;
 import org.span.manager.ManetManagerApp;
 
 import android.app.Service;
+import android.content.Context;
 import android.content.Intent;
+import android.location.Location;
+import android.location.LocationListener;
+import android.location.LocationManager;
+import android.os.Bundle;
 import android.os.Handler;
 import android.os.Parcel;
 import android.util.Log;
+import android.widget.Toast;
 
 public abstract class VANETServiceBase extends Service {
 
     private static final String TAG = VANETServiceBase.class.getSimpleName();
     
-    public static final int UDP_MAX_PACKET_SIZE = 1024;
+    public static final int UDP_MAX_PACKET_SIZE = 1024 * 1024;
 
     public static final int BEACONS_UDP_RX_PORT = 5656;
     public static final int BEACONS_HISTORY_SIZE = 1000;
@@ -46,7 +50,7 @@ public abstract class VANETServiceBase extends Service {
     
     private ManetManagerApp app;
     private Handler handler;
-    private String hostAddress;
+    protected String hostAddress;
     
     // beacon related members
     private long beaconPeriod;
@@ -58,13 +62,21 @@ public abstract class VANETServiceBase extends Service {
     private VANETBeaconListenerThread listenerThread = null;
     private Timer beaconBroadcastTimer;
     private VANETBeaconBroadcastTimerTask beaconBroadcastTimerTask;
+    private VANETMessageListenerThread messageListenerThread;
+    private VANETMessageSendingThread messageSendingThread;
     
-    private Set<VANETObserver> observers;
+    protected Set<VANETServiceBaseObserver> observers;
     
     private VANETUpdateUiTimerTask updateUiTimerTask;
     private VANETStatisticsData statisticsData;
     private VANETStatisticsData statisticsDataCopy;
 
+    private LocationManager myLocationManager;
+    private MyLocationListener myLocationListener;
+    private final int minTimeRefreshInterval = 500; // 0,5 seconds
+    private final int minLocationDistance = 2; // 2 meters
+    private Location currentLocation = null;
+    
     /*
      * 
      * Public interface.
@@ -76,14 +88,20 @@ public abstract class VANETServiceBase extends Service {
     
     public abstract void onDestroyVANETService();
     
-    public abstract void onData(VANETMessage dataMessage);
+    public abstract void onMessage(VANETMessage dataMessage);
     
-    public abstract void onBeaconReceived(VANETMessage beaconMessage);
+    public abstract void onBeaconReceived(VANETMessage beaconMessage, VANETNode neighbor);
     
     public abstract void onBeaconSent(VANETMessage beaconMessage);
     
+    public abstract void onNeighborAppeared(VANETNode node);
+    
+    public abstract void onNeighborDisappeared(VANETNode node);
+    
+    public abstract void onLocationChanged(Location location);
+    
     public void sendMessage(VANETMessage message) {
-        // ...
+        messageSendingThread.sendMessage(message);
     }
 
     public void startBeacon() {
@@ -92,7 +110,6 @@ public abstract class VANETServiceBase extends Service {
         
         if(listenerThread == null) {
             
-            hostAddress = app.manetcfg.getIpAddress();
             beaconPeriod = app.vanetPrefs.get_beacon_period();
             
             listenerThread = new VANETBeaconListenerThread();
@@ -107,7 +124,7 @@ public abstract class VANETServiceBase extends Service {
         
 //        app.vanetPrefs.edit().put_beacon_started(true).commit();
         
-        for(VANETObserver o : observers) {
+        for(VANETServiceBaseObserver o : observers) {
             o.onBeaconStateChanged(true);
         }
     }
@@ -129,7 +146,7 @@ public abstract class VANETServiceBase extends Service {
             beaconBroadcastTimer.cancel();
         }
         
-        for(VANETObserver o : observers) {
+        for(VANETServiceBaseObserver o : observers) {
             o.onBeaconStateChanged(false);
         }
     }
@@ -154,12 +171,16 @@ public abstract class VANETServiceBase extends Service {
         return (listenerThread != null);
     }
     
+    public Location getCurrentLocation() {
+        return currentLocation;
+    }
+    
     /*
      * 
      * Observer methods.
      * 
      */
-    public void registerObserver(VANETObserver observer) {
+    public void registerObserver(VANETServiceBaseObserver observer) {
         observers.add(observer);
         
         // init observer update
@@ -169,7 +190,7 @@ public abstract class VANETServiceBase extends Service {
         observer.onStatisticData(statisticsDataCopy);
     }
     
-    public void unregisterObserver(VANETObserver observer) {
+    public void unregisterObserver(VANETServiceBaseObserver observer) {
         observers.remove(observer);
     }
     
@@ -181,7 +202,13 @@ public abstract class VANETServiceBase extends Service {
     @Override
     public void onCreate() {
         Log.d(TAG, "onCreate()");
-        observers = new HashSet<VANETObserver>();
+        
+        myLocationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
+        currentLocation = myLocationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
+        myLocationListener = new MyLocationListener();
+        myLocationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER,minTimeRefreshInterval, minLocationDistance,myLocationListener);
+        
+        observers = new HashSet<VANETServiceBaseObserver>();
         statisticsData = new VANETStatisticsData();
         statisticsDataCopy = new VANETStatisticsData();
         app = (ManetManagerApp)getApplication();
@@ -192,8 +219,19 @@ public abstract class VANETServiceBase extends Service {
         beaconMessagesDiff = new LinkedList<VANETMessage>();
         beaconMessagesDiffCopy = new LinkedList<VANETMessage>();
         
+        hostAddress = app.manetcfg.getIpAddress();
+        
+        // Start periodic task for gui update.
         updateUiTimerTask = new VANETUpdateUiTimerTask();
         updateUiTimerTask.startTimer(TIMER_UPDATE_UI_PERIOD, TIMER_UPDATE_UI_PERIOD);
+        
+        // Start message receiving thread.
+        messageListenerThread = new VANETMessageListenerThread();
+        messageListenerThread.start();
+        
+        // Start message sending thread.
+        messageSendingThread = new VANETMessageSendingThread();
+        messageSendingThread.start();
         
         onCreateVANETService();
     }
@@ -201,6 +239,7 @@ public abstract class VANETServiceBase extends Service {
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         Log.d(TAG, "onStartCommand()");
+        
         if(app.vanetPrefs.get_vanet_service_started() == false) {
             onStartVANETService();
             app.vanetPrefs.edit().put_vanet_service_started(true).commit();
@@ -216,9 +255,21 @@ public abstract class VANETServiceBase extends Service {
         
         stopBeacon();
         
+        if(messageSendingThread != null) {
+            messageSendingThread.terminate();
+        }
+        
+        if(messageListenerThread != null) {
+            messageListenerThread.terminate();
+        }
+        
         if(updateUiTimerTask != null) {
             updateUiTimerTask.stopTimer();
         }
+        
+        myLocationManager.removeUpdates(myLocationListener);
+
+        
         
         app.vanetPrefs.edit().put_vanet_service_started(false).commit();
     }
@@ -230,8 +281,9 @@ public abstract class VANETServiceBase extends Service {
      * Private and protected
      * 
      */
-    protected void handleBeaconReceived(VANETMessage receivedBeacon) {
+    protected void handleBeaconReceived(VANETMessage receivedBeacon, float distance) {
         
+        boolean nodeAppeared = false;
         long currentMillisec = System.currentTimeMillis();
         statisticsData.updateBeaconReceived(receivedBeacon.getSizeInBytes());
         
@@ -243,25 +295,37 @@ public abstract class VANETServiceBase extends Service {
             node.setFirstSeen(currentMillisec);
             neighborNodesMap.put(receivedBeacon.getStringAddressSource(), node);
             
+            nodeAppeared = true;
             Log.d(TAG, "................. + + + + ADDING NEIGHBOR: " + receivedBeacon.getStringAddressSource());
         }
         node.setLatitude(receivedBeacon.getLatitude());
         node.setLongitude(receivedBeacon.getLongitude());
+        node.setDistance(distance);
         node.setLastSeen(currentMillisec);
         node.resetCheckPeriodTimer();
         
         // Update the beacon history list.
         addToBeaconMessageHistory(receivedBeacon);
+        
+        onBeaconReceived(receivedBeacon, node);
+        
+        if(nodeAppeared) {
+            onNeighborAppeared(node);
+        }
     }
     
     protected void handleBeaconSent(VANETMessage sentBeacon) {
         
         statisticsData.updateBeaconSent(sentBeacon.getSizeInBytes());
         addToBeaconMessageHistory(sentBeacon);
+        
+        handleNodeTimeoutCheck();
+        
+        // Call abstract method.
+        onBeaconSent(sentBeacon);
     }
     
     private void addToBeaconMessageHistory(VANETMessage beaconMsg) {
-        
         beaconMessagesDiff.add(beaconMsg);
     }
     
@@ -272,6 +336,7 @@ public abstract class VANETServiceBase extends Service {
             if(node.incrementCheckPeriodTimer() >= BEACONS_CHECK_TIMEOUT_PERIODS) {
                 Log.d(TAG, "......................REMOVING NEIGHBOR: " + neighborAddress);
                 neighborNodesMap.remove(neighborAddress);
+                onNeighborDisappeared(node);
             }
         }
     }
@@ -296,9 +361,7 @@ public abstract class VANETServiceBase extends Service {
                 
             } catch (SocketException e) {
                 Log.e(TAG, e.getMessage(), e);
-            } /* catch (UnknownHostException e) {
-                Log.e(TAG, e.getMessage(), e);
-            } */
+            }
         }
         
         public void terminate() {
@@ -355,19 +418,34 @@ public abstract class VANETServiceBase extends Service {
                     parcel.setDataPosition(0);
 
                     final VANETMessage msg = VANETMessage.CREATOR.createFromParcel(parcel);
+                    
+                    parcel.recycle();
+                    parcel = null;
+                    
                     msg.setStringAddressSource(packet.getAddress().getHostAddress());
                     msg.setStringAddressDestination(hostAddress);
                     msg.setIncoming(true);
 
-                    parcel.recycle();
-                    parcel = null;
+                    float distance = -1;
+                    // CurrentLocation reference can be changed from another
+                    // thread. Copy it to local currLoc to keep the same reference.
+                    Location currLoc = currentLocation;
+                    if(currLoc != null) {
+                        float[] distanceResult = null;
+                        Location.distanceBetween(currLoc.getLatitude(), currLoc.getLongitude(), msg.getLatitude(), msg.getLongitude(), distanceResult);
+                        if(distanceResult != null) {
+                            distance = distanceResult[0];
+                        }
+                    }
+                    
+                    final float finalDistance = distance;
 
                     // Update observers with change of beacon list
                     handler.post(new Runnable() {
                         @Override
                         public void run() {
 //                            Log.d(TAG, "Handle received beacon on UI main thread");
-                            handleBeaconReceived(msg);
+                            handleBeaconReceived(msg, finalDistance);
                         }
                     });
 
@@ -402,14 +480,16 @@ public abstract class VANETServiceBase extends Service {
 
                 incrementalId++;
                 
+                Location beaconLocation = currentLocation;
+                
                 final VANETMessage bmsg = new VANETMessage();
                 bmsg.setStringAddressSource(hostAddress);
-                bmsg.setLatitude(1);
-                bmsg.setLongitude(1);
+                bmsg.setLatitude(currentLocation.getLatitude());
+                bmsg.setLongitude(currentLocation.getLongitude());
                 bmsg.setType(VANETMessage.TYPE_BEACON);
-                bmsg.setMessageId(-1);
+                bmsg.setMessageId(app.generateNextVANETMessageID());
                 // broadcast
-                bmsg.setStringAddressDestination("192.168.1.0");
+                bmsg.setStringAddressDestination(app.manetcfg.getIpBroadcast());
                 bmsg.setIncoming(false);
                 
                 parcel = Parcel.obtain();
@@ -428,7 +508,6 @@ public abstract class VANETServiceBase extends Service {
                     public void run() {
 //                        Log.d(TAG, "VANETBeaconBroadcastTimerTask.run() - update on UI thread");
                         handleBeaconSent(bmsg);
-                        handleNodeTimeoutCheck();
                     }
                 });
 
@@ -502,7 +581,7 @@ public abstract class VANETServiceBase extends Service {
             statisticsDataCopy.copyFrom(statisticsData);
             
             // Notify observers.
-            for(VANETObserver observer : observers) {
+            for(VANETServiceBaseObserver observer : observers) {
                 observer.onMessageHistoryDiffUpdate(beaconMessagesDiffCopy);
                 observer.onNeighborListChanged(neighborNodesMapCopy);
                 observer.onStatisticData(statisticsDataCopy);
@@ -517,4 +596,245 @@ public abstract class VANETServiceBase extends Service {
         
     }
     
+    /*
+     * 
+     */
+    private class VANETMessageListenerThread extends Thread {
+        
+        private final String TAG = VANETMessageListenerThread.class.getSimpleName();
+        
+        private DatagramSocket socket = null;
+        private volatile boolean running = true;
+        
+        public VANETMessageListenerThread() {
+            try {
+                Log.i(TAG, "VANETMessageListenerThread() - create socket");
+                // socket = new DatagramSocket(VANETServiceBase.BEACONS_UDP_RX_PORT, InetAddress.getByName(hostAddress));
+                socket = new DatagramSocket(VANETServiceBase.DATA_UDP_RX_PORT);
+                
+            } catch (SocketException e) {
+                Log.e(TAG, e.getMessage(), e);
+            }
+        }
+        
+        
+        
+        public void terminate() {
+            
+            Log.d(TAG, "terminate()");
+            
+            running = false;
+            if(socket != null) {
+                socket.close();
+            }
+        }
+            
+        public void run() {
+
+            Log.d(TAG, "run() ------------------------------------- ");
+
+            byte[] buff = new byte[VANETServiceBase.UDP_MAX_PACKET_SIZE];
+            DatagramPacket packet;
+
+            while (running == true) {
+                try {
+                    // address Android issue where old packet lengths are
+                    // erroneously
+                    // carried over between packet reuse
+                    // packet.setLength(buff.length);
+                    packet = new DatagramPacket(buff, buff.length);
+
+//                    Log.d(TAG, "Listen for message packet...");
+                    socket.receive(packet); // blocking
+
+                    String receivedHostAddress = packet.getAddress().getHostAddress();
+
+                    Log.d(TAG, "Message packet received from IP: " + receivedHostAddress + "; hostAddress: "
+                            + hostAddress);
+
+                    if (hostAddress.equals(receivedHostAddress)) {
+//                        Log.d(TAG, "Drop received packet that is broadcasted by myself!");
+                        continue;
+                    }
+
+                    // TODO: remove debugging code
+                    Log.d(TAG, "packet.getData()!=null: " + (packet.getData() != null));
+                    if (packet.getData() != null) {
+                        Log.d(TAG, "packet.getData().length: " + (packet.getData().length));
+                    }
+                    Log.d(TAG, "packet.getOffset(): " + packet.getOffset());
+                    Log.d(TAG, "packet.getLength(): " + packet.getLength());
+
+//                    byte[] data2 = Arrays.copyOfRange(packet.getData(), packet.getOffset(), packet.getOffset() + packet.getLength());
+//                    Log.d(TAG, "RCV-PACKET:\n" + new String(VANETUtils.bytesToHex(data2)));
+                    
+                    Parcel parcel = Parcel.obtain();
+                    parcel.unmarshall(packet.getData(), packet.getOffset(), packet.getLength());
+                    parcel.setDataPosition(0);
+
+                    final VANETMessage msg = VANETMessage.CREATOR.createFromParcel(parcel);
+                    msg.setStringAddressSource(packet.getAddress().getHostAddress());
+                    msg.setStringAddressDestination(hostAddress);
+                    msg.setIncoming(true);
+
+                    parcel.recycle();
+                    parcel = null;
+
+                    // Update observers with change of beacon list
+                    handler.post(new Runnable() {
+                        @Override
+                        public void run() {
+//                            Log.d(TAG, "Handle received beacon on UI main thread");
+                            beaconMessagesDiff.add(msg);
+                            onMessage(msg);
+                        }
+                    });
+
+                } catch (Exception e) {
+                    Log.e(TAG, "Exception inside listening loop: " + e.getMessage(), e);
+                }
+            }
+        }
+        
+    }
+    
+    /*
+     * VANETBeaconBroadcastTimerTask
+     */
+    private class VANETMessageSendingThread extends Thread {
+
+        private final String TAG = VANETMessageSendingThread.class.getSimpleName();
+        
+        DatagramSocket socket = null;
+        int incrementalId = 0;
+        volatile boolean running = true;
+
+        private Queue<VANETMessage> messageQueue;
+        
+        public VANETMessageSendingThread() {
+            Log.d(TAG, "VANETMessageSendingThread() created");
+            messageQueue = new LinkedList<VANETMessage>();
+            try {
+                socket = new DatagramSocket();
+            } catch (SocketException e) {
+                Log.e(TAG, e.getMessage(), e);
+            }
+        }
+        
+        public void sendMessage(VANETMessage msg) {
+            msg.setIncoming(false);
+            
+            synchronized (messageQueue) {
+                messageQueue.offer(msg);
+                messageQueue.notify();
+            }
+        }
+        
+        public void terminate() {
+            
+            Log.d(TAG, "terminate()");
+            
+            running = false;
+            if(socket != null && !socket.isClosed()) {
+                socket.close();
+            }
+            
+            synchronized (messageQueue) {
+                messageQueue.notify();
+            }
+        }
+
+        @Override
+        public void run() {
+
+            Log.d(TAG, "VANETBeaconBroadcastTimerTask.run()");
+            running = true;
+            Parcel parcel = null;
+            VANETMessage msg = null;
+            
+            while(running) {
+                synchronized (messageQueue) {
+                    msg = messageQueue.poll();
+                    if(msg == null) {
+                        try {
+                            messageQueue.wait();
+                        } catch (InterruptedException e) {
+                        }
+                        continue;
+                    }
+                }
+                
+                
+                try {
+                    parcel = Parcel.obtain();
+                    msg.writeToParcel(parcel, 0);
+                    
+                    byte buff[] = parcel.marshall();
+
+//                    Log.d(TAG, "SNT-PACKET:\n" + new String(VANETUtils.bytesToHex(buff)));
+                    
+                    DatagramPacket packet = new DatagramPacket(buff, buff.length,
+                            InetAddress.getByName(msg.getStringAddressDestination()), VANETServiceBase.DATA_UDP_RX_PORT);
+                    socket.send(packet);
+                    
+                    //
+                    final VANETMessage msg2 = msg;
+                    handler.post(new Runnable() {
+                        @Override
+                        public void run() {
+                            beaconMessagesDiff.add(msg2);
+                        }
+                    });
+
+                } catch (SocketException e) {
+                    Log.e(TAG, "run() - SocketException message: " + e.getMessage());
+                } catch (Exception e) {
+                    Log.e(TAG, "run() - Excep - " + e.getMessage(), e);
+                } finally {
+                    if(parcel != null) {
+                        parcel.recycle();
+                    }
+                }
+                
+            }
+            
+            if (socket != null && !socket.isClosed()) {
+                socket.close();
+            }
+        }
+
+    };
+    
+    /*
+     * Location
+     */
+    private class MyLocationListener implements LocationListener {
+        
+        private final String TAG = MyLocationListener.class.getSimpleName();
+        
+        public void onLocationChanged(Location location) {
+            // Called when a new location is found by the network
+            // location provider.
+            currentLocation = location;
+            
+            double lat = location.getLatitude();
+            double lng = location.getLongitude();
+
+            Log.d(TAG, "GPS :\n Lat:" + lat + "\n Long:" + lng);
+            VANETServiceBase.this.onLocationChanged(currentLocation);
+        }
+
+        public void onProviderEnabled(String provider) {
+            Toast.makeText(getApplicationContext(), "Gps Enabled", Toast.LENGTH_SHORT).show();
+        }
+
+        public void onProviderDisabled(String provider) {
+            Toast.makeText(getApplicationContext(), "Gps Disabled", Toast.LENGTH_SHORT).show();
+            Log.i(TAG, "GPS provider disabled - VANETServiceBase.stopSelf()");
+            stopSelf();
+        }
+
+        public void onStatusChanged(String provider, int status, Bundle extras) {
+        }
+    };
 }

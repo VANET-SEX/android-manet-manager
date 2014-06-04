@@ -14,8 +14,12 @@ public class VANETEvent implements Parcelable {
     private int id;
     private double latitude;
     private double longitude;
+    private long time;
     private String stringOriginatorAddress;
     private String text;
+    
+    public VANETEvent() {
+    }
     
     /*
      * Parcelable protocol.
@@ -29,7 +33,7 @@ public class VANETEvent implements Parcelable {
         this.stringOriginatorAddress = in.readString();
         this.text = in.readString();
     }
-    
+
     @Override
     public int describeContents() {
         return 0;
@@ -54,7 +58,7 @@ public class VANETEvent implements Parcelable {
 
         @Override
         public VANETEvent[] newArray(int size) {
-            throw new UnsupportedOperationException();
+            return new VANETEvent[size];
         }
     };
     
@@ -92,6 +96,14 @@ public class VANETEvent implements Parcelable {
 
     public void setLongitude(double longitude) {
         this.longitude = longitude;
+    }
+    
+    public long getTime() {
+        return time;
+    }
+
+    public void setTime(long time) {
+        this.time = time;
     }
 
     public String getStringOriginatorAddress() {

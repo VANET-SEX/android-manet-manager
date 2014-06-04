@@ -8,7 +8,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_alignParentTop="true"
-        android:layout_alignParentRight="true" />
+        android:layout_alignParentLeft="true" />
     
     <TextView
         android:id="@+id/textView_delay_label"
@@ -29,21 +29,21 @@
         android:layout_alignBaseline="@id/textView_event" />
     
     <TextView
-        android:id="@+id/textView_src_address"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:paddingLeft="2dp"
-        android:layout_below="@id/textView_event" />
-    
-    <TextView
         android:id="@+id/textView_src_address_label"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:paddingLeft="5dp"
+        android:layout_below="@id/textView_event"
         android:layout_alignParentLeft="true"
-        android:layout_toLeftOf="@id/textView_src_address"
-        android:layout_alignBaseline="@id/textView_src_address"
         style="@android:style/TextAppearance.Small"
         android:text="@string/main_layout_vanet_src_address_label" />
+    
+    <TextView
+        android:id="@+id/textView_src_address"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:paddingLeft="2dp"
+        android:layout_toRightOf="@id/textView_src_address_label"
+        android:layout_alignBaseline="@id/textView_src_address_label" />
 
 </RelativeLayout>

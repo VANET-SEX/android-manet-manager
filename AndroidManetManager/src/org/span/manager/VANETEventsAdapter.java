@@ -1,6 +1,8 @@
 package org.span.manager;
 
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 
 import org.span.R;
@@ -29,11 +31,13 @@ public class VANETEventsAdapter extends BaseAdapter {
     private List<VANETEvent> listEvents;
     private LayoutInflater inflater;
     private Context context;
+    private SimpleDateFormat simpleDateFormatter;
 
     public VANETEventsAdapter(Context context) {
         this.context = context;
         this.listEvents = new ArrayList<VANETEvent>();
         this.inflater = (LayoutInflater) context.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
+        simpleDateFormatter = new SimpleDateFormat("HH:mm:ss");
     }
 
     @Override
@@ -55,9 +59,10 @@ public class VANETEventsAdapter extends BaseAdapter {
     public View getView(int position, View convertView, ViewGroup parent) {
         View rowView = convertView;
         VANETEvent event = (VANETEvent) getItem(position);
+        Date eventDate = new Date(event.getTime());
 
         if (rowView == null) {
-            rowView = inflater.inflate(R.layout.vanet_item_textview, null);
+            rowView = inflater.inflate(R.layout.vanet_item_event, null);
 
             ViewHolder viewHolder = new ViewHolder();
             viewHolder.textView_event = (TextView) rowView.findViewById(R.id.textView_event);
@@ -68,10 +73,10 @@ public class VANETEventsAdapter extends BaseAdapter {
 
         // fill data
         ViewHolder holder = (ViewHolder) rowView.getTag();
-
+        
         if (event != null) {
             holder.textView_event.setText(event.getType() + "(" + event.getId() + ")");
-            holder.textView_delay.setText("<no_data>");
+            holder.textView_delay.setText("Time: " + simpleDateFormatter.format(eventDate));
             holder.textView_src_address.setText(event.getStringOriginatorAddress());
         }
 
@@ -79,8 +84,10 @@ public class VANETEventsAdapter extends BaseAdapter {
     }
     
     public void setData(List<VANETEvent> listEvents) {
-        this.listEvents = listEvents;
-        notifyDataSetChanged();
+        if(listEvents != null) {
+            this.listEvents = listEvents;
+            notifyDataSetChanged();
+        }
     }
 
 }

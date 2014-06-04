@@ -20,12 +20,6 @@ public class VANETPrefs {
         return prefs.getBoolean(KEY_vanet_service_started, DEF_vanet_service_started);
     }
     
-    // KEY_vanet_ip_address
-    private static final String KEY_vanet_ip_address = "mvanet.vanet_ip_address";
-    private static final String DEF_vanet_ip_address = null;
-    public String get_vanet_ip_address() {
-        return prefs.getString(KEY_vanet_ip_address, DEF_vanet_ip_address);
-    }
     
     // KEY_beacon_period
     private static final String KEY_beacon_period = "mvanet.beacon_period";
@@ -40,6 +34,20 @@ public class VANETPrefs {
 //    public boolean get_beacon_started() {
 //        return prefs.getBoolean(KEY_beacon_started, DEF_beacon_started);
 //    }
+    
+    // KEY_message_id_generator_value
+    private static final String KEY_message_id_generator_value = "mvanet.message_id_generator_value";
+    private static final int DEF_message_id_generator_value = 0;
+    public int get_message_id_generator_value() {
+        return prefs.getInt(KEY_message_id_generator_value, DEF_message_id_generator_value);
+    }
+    
+    // KEY_event_id_generator_value
+    private static final String KEY_event_id_generator_value = "mvanet.event_id_generator_value";
+    private static final int DEF_event_id_generator_value = 0;
+    public int get_event_id_generator_value() {
+        return prefs.getInt(KEY_event_id_generator_value, DEF_event_id_generator_value);
+    }
 
     /*
      *  singleton
@@ -91,15 +99,9 @@ public class VANETPrefs {
             return vanetPrefsEditor;
         }
         
-        // KEY_vanet_ip_address
-        public VANETPrefsEditor put_vanet_ip_address(String value) {
-            edit.putString(KEY_vanet_ip_address, value);
-            return vanetPrefsEditor;
-        }
-        
         // KEY_beacon_period
-        public VANETPrefsEditor put_beacon_period(long beacon_period) {
-            edit.putLong(KEY_beacon_period, beacon_period);
+        public VANETPrefsEditor put_beacon_period(int value) {
+            edit.putLong(KEY_beacon_period, value);
             return vanetPrefsEditor;
         }
         
@@ -119,5 +121,16 @@ public class VANETPrefs {
             return vanetPrefsEditor;
         }
         
+        // KEY_message_id_generator_value
+        public VANETPrefsEditor put_message_id_generator_value(int value) {
+            edit.putInt(KEY_message_id_generator_value, value);
+            return vanetPrefsEditor;
+        }
+        
+        // KEY_event_id_generator_value
+        public VANETPrefsEditor put_event_id_generator_value(int value) {
+            edit.putInt(KEY_event_id_generator_value, value);
+            return vanetPrefsEditor;
+        }
     }
 }

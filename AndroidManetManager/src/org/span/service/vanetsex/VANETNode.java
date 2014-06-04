@@ -5,6 +5,7 @@ public class VANETNode {
     private String stringAddress;
     private double latitude;
     private double longitude;
+    private float distance;
     private long firstSeen;
     private long lastSeen;
     private int checkPeriodTimer = 0;
@@ -27,6 +28,12 @@ public class VANETNode {
     }
     public void setLongitude(double longitude) {
         this.longitude = longitude;
+    }
+    public float getDistance() {
+        return distance;
+    }
+    public void setDistance(float distance) {
+        this.distance = distance;
     }
     public long getFirstSeen() {
         return firstSeen;

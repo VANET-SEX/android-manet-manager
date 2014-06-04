@@ -55,6 +55,10 @@ public class VANETMessage implements Parcelable {
         case VANETMessage.TYPE_EVENT:
             data = VANETEvent.CREATOR.createFromParcel(in);
             break;
+            
+//        case VANETMessage.TYPE_EVENT_ARRAY:
+//            data = VANETEvent.CREATOR.createFromParcel(in);
+//            break;
 
         default:
             break;
