@@ -8,6 +8,7 @@ public class VANETMessage implements Parcelable {
     
     public static final byte TYPE_BEACON = (byte)1;
     public static final byte TYPE_EVENT = (byte)2;
+    public static final byte TYPE_PING_PONG = (byte)99;
 
     private byte type;
     private String stringAddressSource;
@@ -60,6 +61,10 @@ public class VANETMessage implements Parcelable {
 //            data = VANETEvent.CREATOR.createFromParcel(in);
 //            break;
 
+        case VANETMessage.TYPE_PING_PONG:
+            data = VANETPingPongPacket.CREATOR.createFromParcel(in);
+            break;
+            
         default:
             break;
         }

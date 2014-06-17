@@ -33,6 +33,7 @@ import org.span.service.system.ManetConfig;
 import org.span.service.vanetsex.VANETEvent;
 import org.span.service.vanetsex.VANETMessage;
 import org.span.service.vanetsex.VANETNode;
+import org.span.service.vanetsex.VANETPingPongState;
 import org.span.service.vanetsex.VANETService;
 import org.span.service.vanetsex.VANETServiceBaseObserver;
 import org.span.service.vanetsex.VANETServiceObserver;
@@ -182,7 +183,7 @@ public class MainActivity extends Activity implements EulaObserver, ManetObserve
         
         textView_details.setText(Html.fromHtml(getString(R.string.main_layout_vanet_details, .0, 0, .0, 0, .0, 0, .0, 0)));
         textView_neighbors_title.setText(Html.fromHtml(getString(R.string.main_layout_vanet_neighbors)));
-        textView_message_history_title.setText(Html.fromHtml(getString(R.string.main_layout_vanet_message_history)));
+        textView_message_history_title.setText(Html.fromHtml(getString(R.string.main_layout_vanet_message_history, "")));
         textView_events_title.setText(Html.fromHtml(getString(R.string.main_layout_vanet_events)));
 
         // Update the IP and SSID display immediate when the Activity is shown and
@@ -335,6 +336,7 @@ public class MainActivity extends Activity implements EulaObserver, ManetObserve
 	private static final int MENU_CHANGE_SETTINGS 	= 0;
 	private static final int MENU_ABOUT 			= 1;
 	private static final int MENU_SEND_MESSAGE		= 2;
+	private static final int MENU_PING_PONG            = 3;
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
@@ -344,6 +346,7 @@ public class MainActivity extends Activity implements EulaObserver, ManetObserve
     	SubMenu about = menu.addSubMenu(0, MENU_ABOUT, 0, getString(R.string.main_activity_about));
     	about.setIcon(drawable.ic_menu_info_details);
     	SubMenu send = menu.addSubMenu(0, MENU_SEND_MESSAGE, 0, getString(R.string.main_activity_send_message));
+    	SubMenu pingPong = menu.addSubMenu(0, MENU_PING_PONG, 0, getString(R.string.main_activity_ping_pong));
     	return supRetVal;
     }
     
@@ -362,6 +365,9 @@ public class MainActivity extends Activity implements EulaObserver, ManetObserve
 	    	case MENU_SEND_MESSAGE :
 	    		SendMessageActivity.open(this);
 	    		break;
+	    	case MENU_PING_PONG :
+	    	    VANETPingPongActivity.open(this);
+                break;
 	    }
     	return supRetVal;
     }    
@@ -805,7 +811,10 @@ public class MainActivity extends Activity implements EulaObserver, ManetObserve
         public void onNeighborListChanged(Map<String, VANETNode> neighborMap) {
             vanetNeighborsAdapter.setNotifyOnChange(false);
             vanetNeighborsAdapter.clear();
-            vanetNeighborsAdapter.addAll(neighborMap.keySet());
+            for(String nodeAddress : neighborMap.keySet()) {
+                VANETNode n = neighborMap.get(nodeAddress);
+                vanetNeighborsAdapter.add(nodeAddress + " (" + n.getDistance() + "m)");
+            }
             vanetNeighborsAdapter.notifyDataSetChanged();
         }
         
@@ -819,6 +828,7 @@ public class MainActivity extends Activity implements EulaObserver, ManetObserve
             // The vanetMessagesAdapter already holds reference to the message
             // history list which is updated with the diffHistory list. Just
             // notify list about data change.
+            textView_message_history_title.setText(Html.fromHtml(getString(R.string.main_layout_vanet_message_history, vanetService.getBeaconMessageHistory().size())));
             vanetMessagesAdapter.notifyDataSetChanged();
         }
         
@@ -839,8 +849,13 @@ public class MainActivity extends Activity implements EulaObserver, ManetObserve
 
         @Override
         public void onEventListChanged(List<VANETEvent> events) {
-            textView_events_title.setText(Html.fromHtml(getString(R.string.main_layout_vanet_events)) + " (" + events.size() + ")");
+            textView_events_title.setText(Html.fromHtml(getString(R.string.main_layout_vanet_events, events.size())));
             vanetEventsAdapter.setData(events);            
+        }
+
+        @Override
+        public void onPingPongStatistics(VANETPingPongState pingPongState) {
+            // Nothing to do.
         }
         
     };
@@ -932,7 +947,6 @@ public class MainActivity extends Activity implements EulaObserver, ManetObserve
                 vanetService.event(VANETEvent.TYPE_EVENT_C);
             } else if(btn_eventD.equals(view)) {
 //                vanetService.event(VANETEvent.TYPE_EVENT_D);
-                vanetService.events1000(VANETEvent.TYPE_EVENT_D);
             }
         }
     };

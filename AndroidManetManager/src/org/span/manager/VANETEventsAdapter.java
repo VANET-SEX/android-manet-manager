@@ -75,7 +75,7 @@ public class VANETEventsAdapter extends BaseAdapter {
         ViewHolder holder = (ViewHolder) rowView.getTag();
         
         if (event != null) {
-            holder.textView_event.setText(event.getType() + "(" + event.getId() + ")");
+            holder.textView_event.setText(event.getType() + "(" + event.getId() + ") " + ((int)event.getDistance()) + "m");
             holder.textView_delay.setText("Time: " + simpleDateFormatter.format(eventDate));
             holder.textView_src_address.setText(event.getStringOriginatorAddress());
         }

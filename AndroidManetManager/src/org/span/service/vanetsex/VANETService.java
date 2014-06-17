@@ -1,6 +1,7 @@
 package org.span.service.vanetsex;
 
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -17,6 +18,7 @@ import android.location.Location;
 import android.os.Binder;
 import android.os.IBinder;
 import android.util.Log;
+import android.widget.Toast;
 
 
 public class VANETService extends VANETServiceBase {
@@ -36,7 +38,11 @@ public class VANETService extends VANETServiceBase {
     private Map<Integer, VANETEvent> mapEvents;
     private List<VANETEvent> listEvents;
     
+    private Location currentLocation = null;
     StringBuilder sb;
+    
+    private VANETPingPongState pingPongState;
+    
     
     /*
      * Listeners / Observers interfaces
@@ -58,6 +64,7 @@ public class VANETService extends VANETServiceBase {
         mapEvents = new HashMap<Integer, VANETEvent>();
         listEvents = new LinkedList<VANETEvent>();
         dateFormat = new SimpleDateFormat("HH:mm:ss");
+        pingPongState = null;
         
         // init observer
         for(VANETServiceObserver o : observers) {
@@ -121,7 +128,22 @@ public class VANETService extends VANETServiceBase {
                 
                 sendMessage(rebroadcastMsg);
             }
-        } 
+        } else if(dataMessage.getType() == VANETMessage.TYPE_PING_PONG) {
+            
+            VANETPingPongPacket pp = (VANETPingPongPacket) dataMessage.getData();
+            byte[] dummyData = pp.getDummyData();
+            
+            if(pingPongState != null) {
+                pingPongState.packetReceived();
+                dummyData = pingPongState.getDummyData();
+            }
+            
+            if(pingPongState.getPacketsSent() < pingPongState.getNumberOfPacketsToSend()) {
+                sendPingPongPacket(dataMessage.getStringAddressSource(), (pp.getCounter() + 1), dummyData);
+            } else {
+                
+            }
+        }
     }
 
     @Override
@@ -148,7 +170,19 @@ public class VANETService extends VANETServiceBase {
     
     @Override
     public void onLocationChanged(Location location) {
+        currentLocation = location;
         
+        // Calculate new distances to locations of events.
+        float dist[] = null;
+        for(VANETEvent ev : listEvents) {
+            Location.distanceBetween(currentLocation.getLatitude(), currentLocation.getLongitude(), ev.getLatitude(), ev.getLongitude(), dist);
+            ev.setDistance(dist[0]);
+        }
+        
+        // update gui
+        for(VANETServiceObserver o : observers) {
+            o.onEventListChanged(listEvents);
+        }
     }
     
     
@@ -232,55 +266,34 @@ public class VANETService extends VANETServiceBase {
         }
     }
     
-    public void events1000(byte eventType) {
-        Log.i(TAG, "events1000() - eventType: " + eventType);
+    public void doPingPong(String destinationAddress, int numberOfPackets, int packetPayloadSize) {
+        Log.i(TAG, "startPingPong() - destinationAddress: " + destinationAddress + " numberOfPackets: " + numberOfPackets + " packetPayloadSize: " + packetPayloadSize);
         
-        for(int i = 0; i<1000; i++) {
-            Date date = new Date();
-            
-            // Compose VANET message - "HEADER"
-            VANETMessage msg = new VANETMessage();
-            msg.setStringAddressSource(hostAddress);
-            msg.setStringAddressDestination(app.manetcfg.getIpBroadcast());
-            msg.setType(VANETMessage.TYPE_EVENT);
-            msg.setMessageId(app.generateNextVANETMessageID());
-            msg.setLatitude(getCurrentLocation().getLatitude());
-            msg.setLongitude(getCurrentLocation().getLongitude());
-            
-            // Compose VANET message - "BODY"
-            // BODY has to be Parcelable. In this specific case, VANETEvent
-            // implements parcelable and event is sent as body of vanet message.
-            VANETEvent event = new VANETEvent();
-            event.setId(app.generateNextVANETEventID());
-            event.setLatitude(getCurrentLocation().getLatitude());
-            event.setLongitude(getCurrentLocation().getLongitude());
-            event.setStringOriginatorAddress(hostAddress);
-            
-            int textBytes = 1024 * 1;
-            if (sb == null) {
-                sb = new StringBuilder(1000);
-                for (int iTB = 0; iTB <= textBytes; iTB += 2) {
-                    sb.append('a');
-                }
-            }
-            event.setText(sb.toString());
-            
-//            event.setText(dateFormat.format(date) + " Event A ");
-            
-            event.setType(eventType);
-            
-            msg.setData(event);
-            sendMessage(msg);
-            
-            mapEvents.put(event.getId(), event);
-            listEvents.add(event);
-            
-            // update gui
-            if(i%50 == 0) {
-                for(VANETServiceObserver o : observers) {
-                    o.onEventListChanged(listEvents);
-                }
-            }
+        pingPongState = new VANETPingPongState(destinationAddress, numberOfPackets, packetPayloadSize);
+        sendPingPongPacket(destinationAddress, 0, pingPongState.getDummyData());
+    }
+    
+    private void sendPingPongPacket(String destinationAddress, int counter, byte[] dummyData) {
+        
+        // Compose VANET message - "HEADER"
+        VANETMessage msg = new VANETMessage();
+        msg.setStringAddressSource(hostAddress);
+        msg.setStringAddressDestination(destinationAddress);
+        msg.setType(VANETMessage.TYPE_PING_PONG);
+        msg.setMessageId(app.generateNextVANETMessageID());
+        msg.setLatitude(getCurrentLocation().getLatitude());
+        msg.setLongitude(getCurrentLocation().getLongitude());
+        
+        // VANETPingPongPacket
+        VANETPingPongPacket pp = new VANETPingPongPacket();
+        pp.setCounter(counter);
+        pp.setDummyData(dummyData);
+        
+        msg.setData(pp);
+        sendMessage(msg);
+        
+        if(pingPongState != null) {
+            pingPongState.packetSent();
         }
     }
     
@@ -301,19 +314,4 @@ public class VANETService extends VANETServiceBase {
         }
     }
     
-    /*
-     * 
-     * Gui update timer task.
-     * 
-     */
-    private class GuiUpdateTimerTask extends TimerTask {
-        
-        @Override
-        public void run() {
-            
-        }
-        
-    }
-    
-
 }

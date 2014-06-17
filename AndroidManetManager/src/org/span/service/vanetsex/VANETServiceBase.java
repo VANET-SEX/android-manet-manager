@@ -56,9 +56,9 @@ public abstract class VANETServiceBase extends Service {
     private long beaconPeriod;
     private Map<String, VANETNode> neighborNodesMap;
     private Map<String, VANETNode> neighborNodesMapCopy;
-    private List<VANETMessage> beaconMessages;
-    private List<VANETMessage> beaconMessagesDiff;
-    private List<VANETMessage> beaconMessagesDiffCopy;
+    private List<VANETMessage> messages;
+    private List<VANETMessage> MessagesDiff;
+    private List<VANETMessage> messagesDiffCopy;
     private VANETBeaconListenerThread listenerThread = null;
     private Timer beaconBroadcastTimer;
     private VANETBeaconBroadcastTimerTask beaconBroadcastTimerTask;
@@ -156,7 +156,7 @@ public abstract class VANETServiceBase extends Service {
     }
     
     public List<VANETMessage> getBeaconMessageHistory() {
-        return beaconMessages;
+        return messages;
     }
     
     public void setBeaconPeriod(long milliseconds) {
@@ -185,7 +185,7 @@ public abstract class VANETServiceBase extends Service {
         
         // init observer update
         observer.onBeaconStateChanged(isBeaconRunning());
-        observer.onMessageHistoryInit(beaconMessages);
+        observer.onMessageHistoryInit(messages);
         observer.onNeighborListChanged(neighborNodesMapCopy);
         observer.onStatisticData(statisticsDataCopy);
     }
@@ -215,9 +215,9 @@ public abstract class VANETServiceBase extends Service {
         handler = new Handler();
         neighborNodesMap = new HashMap<String, VANETNode>();
         neighborNodesMapCopy = new HashMap<String, VANETNode>();
-        beaconMessages = new LinkedList<VANETMessage>();
-        beaconMessagesDiff = new LinkedList<VANETMessage>();
-        beaconMessagesDiffCopy = new LinkedList<VANETMessage>();
+        messages = new LinkedList<VANETMessage>();
+        MessagesDiff = new LinkedList<VANETMessage>();
+        messagesDiffCopy = new LinkedList<VANETMessage>();
         
         hostAddress = app.manetcfg.getIpAddress();
         
@@ -326,7 +326,7 @@ public abstract class VANETServiceBase extends Service {
     }
     
     private void addToBeaconMessageHistory(VANETMessage beaconMsg) {
-        beaconMessagesDiff.add(beaconMsg);
+        MessagesDiff.add(beaconMsg);
     }
     
     protected void handleNodeTimeoutCheck() {
@@ -560,18 +560,18 @@ public abstract class VANETServiceBase extends Service {
             long startTime = System.currentTimeMillis();
             
             // Copy history diff, add it to history and reset it.
-            beaconMessagesDiffCopy.clear();
-            beaconMessagesDiffCopy.addAll(beaconMessagesDiff);
+            messagesDiffCopy.clear();
+            messagesDiffCopy.addAll(MessagesDiff);
 
             // First remove oldest messages in history to make space for diff.
-            int numberToRemove = beaconMessages.size() - BEACONS_HISTORY_SIZE + beaconMessagesDiff.size();
+            int numberToRemove = messages.size() - BEACONS_HISTORY_SIZE + MessagesDiff.size();
             while(numberToRemove > 0) {
-                beaconMessages.remove(0);
+                messages.remove(0);
                 numberToRemove--;
             }
-            beaconMessages.addAll(beaconMessagesDiff);
+            messages.addAll(MessagesDiff);
             
-            beaconMessagesDiff.clear();
+            MessagesDiff.clear();
             
             // Copy neighbor map and reset it.
             neighborNodesMapCopy.clear();
@@ -582,7 +582,7 @@ public abstract class VANETServiceBase extends Service {
             
             // Notify observers.
             for(VANETServiceBaseObserver observer : observers) {
-                observer.onMessageHistoryDiffUpdate(beaconMessagesDiffCopy);
+                observer.onMessageHistoryDiffUpdate(messagesDiffCopy);
                 observer.onNeighborListChanged(neighborNodesMapCopy);
                 observer.onStatisticData(statisticsDataCopy);
             }
@@ -685,7 +685,7 @@ public abstract class VANETServiceBase extends Service {
                         @Override
                         public void run() {
 //                            Log.d(TAG, "Handle received beacon on UI main thread");
-                            beaconMessagesDiff.add(msg);
+                            MessagesDiff.add(msg);
                             onMessage(msg);
                         }
                     });
@@ -782,7 +782,7 @@ public abstract class VANETServiceBase extends Service {
                     handler.post(new Runnable() {
                         @Override
                         public void run() {
-                            beaconMessagesDiff.add(msg2);
+                            MessagesDiff.add(msg2);
                         }
                     });
 
@@ -821,6 +821,22 @@ public abstract class VANETServiceBase extends Service {
             double lng = location.getLongitude();
 
             Log.d(TAG, "GPS :\n Lat:" + lat + "\n Long:" + lng);
+            
+            // Calculate new distances to neighbor nodes, regarding to the new location.
+            if(neighborNodesMapCopy != null) {
+                float dist[] = null;
+                for(String nodeAddress : neighborNodesMapCopy.keySet()) {
+                    VANETNode node = neighborNodesMapCopy.get(nodeAddress);
+                    Location.distanceBetween(lat, lng, node.getLatitude(), node.getLongitude(), dist);
+                    node.setDistance(dist[0]);
+                }
+                
+                // Update GUI with a new distances in the neighbor list.
+                for(VANETServiceBaseObserver o : observers) {
+                    o.onNeighborListChanged(neighborNodesMapCopy);
+                }
+            }
+            
             VANETServiceBase.this.onLocationChanged(currentLocation);
         }
 

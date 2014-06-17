@@ -17,6 +17,8 @@ public class VANETEvent implements Parcelable {
     private long time;
     private String stringOriginatorAddress;
     private String text;
+    /* Not serialized */
+    private float distance;
     
     public VANETEvent() {
     }
@@ -120,6 +122,14 @@ public class VANETEvent implements Parcelable {
 
     public void setText(String text) {
         this.text = text;
+    }
+    
+    public float getDistance() {
+        return distance;
+    }
+
+    public void setDistance(float distance) {
+        this.distance = distance;
     }
 
     public static Parcelable.Creator<VANETEvent> getCreator() {

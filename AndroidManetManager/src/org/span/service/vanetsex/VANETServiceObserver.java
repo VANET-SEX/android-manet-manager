@@ -8,5 +8,7 @@ public interface VANETServiceObserver {
     // Callback methods called from VANETService
     
     public void onEventListChanged(List<VANETEvent> events);
+    
+    public void onPingPongStatistics(VANETPingPongState pingPongState);
 
 }

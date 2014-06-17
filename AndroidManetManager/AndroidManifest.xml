@@ -96,6 +96,11 @@
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
         </activity>
+        
+        <activity
+            android:name="org.span.manager.VANETPingPongActivity"
+            android:screenOrientation="portrait"
+            android:launchMode="standard" />
 
         <service
             android:name="org.span.manager.MessageService"

@@ -78,8 +78,7 @@ public class VANETMessagesAdapter extends BaseAdapter {
         } else if (msg.getType() == VANETMessage.TYPE_EVENT) {
             VANETEvent event = (VANETEvent) msg.getData();
             if (msg.isIncoming()) {
-                holder.textView_message.setText(msg.getStringAddressSource() + " ("
-                        + event.getStringOriginatorAddress() + ") " + event.getTypeTitle() + " SIZE:" + msg.getSizeInBytes());
+                holder.textView_message.setText(msg.getStringAddressSource() + " " + event.getTypeTitle() + " SIZE:" + msg.getSizeInBytes());
                 holder.imageView_icon.setImageResource(R.drawable.vse_incoming);
             } else {
                 holder.textView_message.setText(msg.getStringAddressDestination() + " " + event.getTypeTitle() + " SIZE:" + msg.getSizeInBytes());
