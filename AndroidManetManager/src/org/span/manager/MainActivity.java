@@ -33,12 +33,12 @@ import org.span.service.system.ManetConfig;
 import org.span.service.vanetsex.VANETEvent;
 import org.span.service.vanetsex.VANETMessage;
 import org.span.service.vanetsex.VANETNode;
-import org.span.service.vanetsex.VANETPingPongState;
 import org.span.service.vanetsex.VANETService;
 import org.span.service.vanetsex.VANETServiceBaseObserver;
 import org.span.service.vanetsex.VANETServiceObserver;
 import org.span.service.vanetsex.VANETStatisticsData;
 import org.span.service.vanetsex.VANETUtils;
+import org.span.service.vanetsex.pingpong.VANETPingPongState;
 
 import android.R.drawable;
 import android.app.Activity;
@@ -91,6 +91,7 @@ public class MainActivity extends Activity implements EulaObserver, ManetObserve
 	private static int ID_DIALOG_CONFIG 	= 3;
 	private static int ID_DIALOG_STARTING_VANET_SERVICE    = 4;
 	private static int ID_DIALOG_STOPPING_VANET_SERVICE    = 5;
+	private static int ID_DIALOG_INITIALIZING_GPS 	= 6;
 	
 	private static ManetManagerApp app = null;
 		
@@ -108,7 +109,7 @@ public class MainActivity extends Activity implements EulaObserver, ManetObserve
 	private Button btn_eventA;
 	private Button btn_eventB;
 	private Button btn_eventC;
-    private Button btn_eventD;
+//    private Button btn_eventD;
 	
 	private ListView listView;
 	private ListView listView_neighbors;
@@ -163,7 +164,7 @@ public class MainActivity extends Activity implements EulaObserver, ManetObserve
         btn_eventA = (Button)findViewById(R.id.btn_eventA);
         btn_eventB = (Button)findViewById(R.id.btn_eventB);
         btn_eventC = (Button)findViewById(R.id.btn_eventC);
-        btn_eventD = (Button)findViewById(R.id.btn_eventD);
+//        btn_eventD = (Button)findViewById(R.id.btn_eventD);
         listView = (ListView)findViewById(R.id.listView);
         listView_neighbors = (ListView)findViewById(R.id.listView_neighbors);
         listView_events = (ListView)findViewById(R.id.listView_events);
@@ -240,12 +241,12 @@ public class MainActivity extends Activity implements EulaObserver, ManetObserve
         btn_eventA.setOnClickListener(btn_event_onClickListener);
         btn_eventB.setOnClickListener(btn_event_onClickListener);
         btn_eventC.setOnClickListener(btn_event_onClickListener);
-        btn_eventD.setOnClickListener(btn_event_onClickListener);
+//        btn_eventD.setOnClickListener(btn_event_onClickListener);
         
         btn_eventA.setEnabled(false);
         btn_eventB.setEnabled(false);
         btn_eventC.setEnabled(false);
-        btn_eventD.setEnabled(false);
+//        btn_eventD.setEnabled(false);
         
         /*
          * Initialization of vanet and beacon toggle btns will be done in method
@@ -291,7 +292,7 @@ public class MainActivity extends Activity implements EulaObserver, ManetObserve
 		}
 		
 		if(vanetService != null) {
-		    vanetService.unregisterObserver(vanetServiceBaseObserver);
+		    vanetService.unregisterBaseObserver(vanetServiceBaseObserver);
 		}
 		try {
             unbindService(vanetServiceConnection);
@@ -307,6 +308,7 @@ public class MainActivity extends Activity implements EulaObserver, ManetObserve
 				
 		// check if the battery temperature should be displayed
 		if(app.prefs.getString("batterytemppref", "fahrenheit").equals("disabled") == false) {
+			Log.d(TAG, "onResume() -------------------- 1");
 	        // create the IntentFilter that will be used to listen
 	        // to battery status broadcasts
 	        intentFilter = new IntentFilter();
@@ -314,6 +316,7 @@ public class MainActivity extends Activity implements EulaObserver, ManetObserve
 	        registerReceiver(intentReceiver, intentFilter);
 	        batteryTemperatureLayout.setVisibility(View.VISIBLE);
 		} else {
+			Log.d(TAG, "onResume() -------------------- 2");
 			try {
 				unregisterReceiver(this.intentReceiver);
 			} catch (Exception e) {;}
@@ -321,8 +324,11 @@ public class MainActivity extends Activity implements EulaObserver, ManetObserve
 		}
 		
 		// Register to receive updates about the device network state
+		Log.d(TAG, "onResume() -------------------- 3 -1");
 		registerReceiver(intentReceiver, new IntentFilter(WifiManager.NETWORK_STATE_CHANGED_ACTION));
+		Log.d(TAG, "onResume() -------------------- 3 -2");
 		registerReceiver(intentReceiver, new IntentFilter(ConnectivityManager.CONNECTIVITY_ACTION));
+		Log.d(TAG, "onResume() -------------------- 3 -3");
 		
 		/*
         Window window = getWindow();
@@ -409,6 +415,13 @@ public class MainActivity extends Activity implements EulaObserver, ManetObserve
             progressDialog.setIndeterminate(false);
             progressDialog.setCancelable(true);
             return progressDialog;
+        } else if(id == ID_DIALOG_INITIALIZING_GPS) {
+            progressDialog = new ProgressDialog(this);
+            progressDialog.setTitle(getString(R.string.main_activity_vanet_waiting_for_gps_signal));
+            progressDialog.setMessage(getString(R.string.main_activity_vanet_initializing_gps));
+            progressDialog.setIndeterminate(false);
+            progressDialog.setCancelable(false);
+            return progressDialog;
         }
     	return null;
     }
@@ -424,7 +437,9 @@ public class MainActivity extends Activity implements EulaObserver, ManetObserve
             return onCreateDialog(id);
         } else if (id == ID_DIALOG_STOPPING_VANET_SERVICE) {
             return onCreateDialog(id);      
-        } else if (id == ID_DIALOG_CONNECTING) {
+        } else if (id == ID_DIALOG_INITIALIZING_GPS) {
+    		return onCreateDialog(id);
+    	} else if (id == ID_DIALOG_CONNECTING) {
     		return onCreateDialog(id);
     	} else if (id == ID_DIALOG_CONFIG) {
     		//Config load dialogue
@@ -755,22 +770,31 @@ public class MainActivity extends Activity implements EulaObserver, ManetObserve
             btn_eventA.setEnabled(true);
             btn_eventB.setEnabled(true);
             btn_eventC.setEnabled(true);
-            btn_eventD.setEnabled(true);
+//            btn_eventD.setEnabled(true);
             
             // Register this activity as vanet service observer.
-            vanetService.registerObserver(vanetServiceBaseObserver);
+            vanetService.registerBaseObserver(vanetServiceBaseObserver);
             vanetService.registerObserver(vanetServiceObserver);
             
             Toast.makeText(MainActivity.this, "Connected to VANETService",
                     Toast.LENGTH_SHORT).show();
             
             removeDialog();
+            
+            if(vanetService.getCurrentLocation() == null) {
+            	Log.d(TAG, "Wait for GPS cuurentLocation to be initialized ...");
+		    	showDialog(ID_DIALOG_INITIALIZING_GPS);
+		    	currDialogId = ID_DIALOG_INITIALIZING_GPS;
+            } else {
+            	Log.d(TAG, "GPS currentLocation is initialized - lat: " + vanetService.getCurrentLocation().getLatitude());
+            	Log.d(TAG, "GPS currentLocation is initialized - long: " + vanetService.getCurrentLocation().getLongitude());
+            }
         }
 
         public void onServiceDisconnected(ComponentName className) {
             Log.d(TAG, "Disonnected from VANETService ...................................");
 
-            vanetService.unregisterObserver(vanetServiceBaseObserver);
+            vanetService.unregisterBaseObserver(vanetServiceBaseObserver);
             vanetService.unregisterObserver(vanetServiceObserver);
             
             toggleBtn_startStopBeacon.setOnCheckedChangeListener(null);
@@ -781,7 +805,7 @@ public class MainActivity extends Activity implements EulaObserver, ManetObserve
             btn_eventA.setEnabled(false);
             btn_eventB.setEnabled(false);
             btn_eventC.setEnabled(false);
-            btn_eventD.setEnabled(false);
+//            btn_eventD.setEnabled(false);
             
             vanetService = null;
             Toast.makeText(MainActivity.this, "Disconnected from VANETService",
@@ -843,6 +867,12 @@ public class MainActivity extends Activity implements EulaObserver, ManetObserve
         public void onVANETServiceDestroy() {
 //            app.manet.sendStopAdhocCommand();
         }
+
+		@Override
+		public void onGPSInitialized() {
+			Log.d(TAG, "onGPSInitialized()");
+			removeDialog();
+		}
     };
     
     VANETServiceObserver vanetServiceObserver = new VANETServiceObserver() {
@@ -852,12 +882,6 @@ public class MainActivity extends Activity implements EulaObserver, ManetObserve
             textView_events_title.setText(Html.fromHtml(getString(R.string.main_layout_vanet_events, events.size())));
             vanetEventsAdapter.setData(events);            
         }
-
-        @Override
-        public void onPingPongStatistics(VANETPingPongState pingPongState) {
-            // Nothing to do.
-        }
-        
     };
     
     private OnCheckedChangeListener toggleBtn_startStopVanetListener = new CompoundButton.OnCheckedChangeListener() {
@@ -884,7 +908,7 @@ public class MainActivity extends Activity implements EulaObserver, ManetObserve
                         toggleBtn_startStopVanet.setOnCheckedChangeListener(toggleBtn_startStopVanetListener);
                         
                     } else {
-                        Toast.makeText(getApplicationContext(), "OK, GPS is turned ON!", Toast.LENGTH_LONG).show();
+                        Toast.makeText(getApplicationContext(), "GPS is turned ON", Toast.LENGTH_LONG).show();
                         
                         startService(new Intent(MainActivity.this, VANETService.class));
                         bindService(new Intent(MainActivity.this, VANETService.class), vanetServiceConnection, 0);
@@ -945,9 +969,10 @@ public class MainActivity extends Activity implements EulaObserver, ManetObserve
                 vanetService.event(VANETEvent.TYPE_EVENT_B);
             } else if(btn_eventC.equals(view)) {
                 vanetService.event(VANETEvent.TYPE_EVENT_C);
-            } else if(btn_eventD.equals(view)) {
-//                vanetService.event(VANETEvent.TYPE_EVENT_D);
             }
+//            else if(btn_eventD.equals(view)) {
+////                vanetService.event(VANETEvent.TYPE_EVENT_D);
+//            }
         }
     };
     

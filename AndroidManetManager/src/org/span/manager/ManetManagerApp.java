@@ -175,7 +175,7 @@ public class ManetManagerApp extends Application implements ManetObserver {
     
     public int generateNextVANETMessageID() {
         int generatedId = vanetPrefs.get_message_id_generator_value();
-        if(generatedId >= MAX_ID) {
+        if(generatedId < MAX_ID) {
             vanetPrefs.edit().put_message_id_generator_value(generatedId + 1).commit();
         } else {
             vanetPrefs.edit().put_message_id_generator_value(0).commit();
@@ -186,7 +186,7 @@ public class ManetManagerApp extends Application implements ManetObserver {
     
     public int generateNextVANETEventID() {
         int generatedId = vanetPrefs.get_event_id_generator_value();
-        if(generatedId >= MAX_ID) {
+        if(generatedId < MAX_ID) {
             vanetPrefs.edit().put_event_id_generator_value(generatedId + 1).commit();
         } else {
             vanetPrefs.edit().put_event_id_generator_value(0).commit();

@@ -17,8 +17,10 @@ public class VANETEvent implements Parcelable {
     private long time;
     private String stringOriginatorAddress;
     private String text;
+    private byte[] dummyData;
     /* Not serialized */
     private float distance;
+    private long delay;
     
     public VANETEvent() {
     }
@@ -32,8 +34,11 @@ public class VANETEvent implements Parcelable {
         this.id = in.readInt();
         this.latitude = in.readDouble();
         this.longitude = in.readDouble();
+        this.time = in.readLong();
         this.stringOriginatorAddress = in.readString();
         this.text = in.readString();
+        dummyData = new byte[in.readInt()];
+        in.readByteArray(dummyData);
     }
 
     @Override
@@ -47,8 +52,11 @@ public class VANETEvent implements Parcelable {
         dest.writeInt(id);
         dest.writeDouble(latitude);
         dest.writeDouble(longitude);
+        dest.writeLong(time);
         dest.writeString(stringOriginatorAddress);
         dest.writeString(text);
+        dest.writeInt(dummyData.length);
+        dest.writeByteArray(dummyData);
     }
     
     public static final Parcelable.Creator<VANETEvent> CREATOR = new Parcelable.Creator<VANETEvent>() {
@@ -124,15 +132,31 @@ public class VANETEvent implements Parcelable {
         this.text = text;
     }
     
-    public float getDistance() {
+    public byte[] getDummyData() {
+		return dummyData;
+	}
+
+	public void setDummyData(byte[] dummyData) {
+		this.dummyData = dummyData;
+	}
+
+	public float getDistance() {
         return distance;
     }
 
     public void setDistance(float distance) {
         this.distance = distance;
     }
+    
+    public long getDelay() {
+		return delay;
+	}
 
-    public static Parcelable.Creator<VANETEvent> getCreator() {
+	public void setDelay(long delay) {
+		this.delay = delay;
+	}
+
+	public static Parcelable.Creator<VANETEvent> getCreator() {
         return CREATOR;
     }
     
@@ -141,11 +165,11 @@ public class VANETEvent implements Parcelable {
      */
     public String getTypeTitle() {
         if(type == TYPE_EVENT_A) {
-            return "Event-A";
+            return "Ev.Small";
         } else if(type == TYPE_EVENT_B) {
-            return "Event-B";
+            return "Ev.Medium";
         } else if(type == TYPE_EVENT_C) {
-            return "Event-C";
+            return "Ev.Large";
         } else if(type == TYPE_EVENT_D) {
             return "Event-D";
         } else {

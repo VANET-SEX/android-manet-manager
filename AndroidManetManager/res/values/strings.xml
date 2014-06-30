@@ -49,6 +49,8 @@
     <!-- <string name="main_activity_trackball_pressed_stop">Trackball pressed. Confirm tether stop.</string> -->
     <string name="main_activity_vanet_start_vanet_service">Start VANETService</string>
     <string name="main_activity_vanet_stop_vanet_service">Stop VANETService</string>
+    <string name="main_activity_vanet_initializing_gps">Initializing GPS</string>
+    <string name="main_activity_vanet_waiting_for_gps_signal">Waiting for GPS signal...</string>
     <string name="main_layout_presstostart">- Press to start Ad-Hoc mode. -</string>
     <string name="main_layout_presstostop">- Press to stop Ad-Hoc mode. -</string>
     <string name="main_layout_download">Download</string> 
@@ -58,9 +60,9 @@
     <string name="main_layout_ip">IP: </string>
     <string name="main_layout_ssid_placeholder">[SSID]</string>
     <string name="main_layout_ssid">SSID: </string>
-    <string name="main_layout_btn_eventA">Event A</string>
-    <string name="main_layout_btn_eventB">Event B</string>
-    <string name="main_layout_btn_eventC">Event C</string>
+    <string name="main_layout_btn_eventA">Event Small</string>
+    <string name="main_layout_btn_eventB">Event Medium</string>
+    <string name="main_layout_btn_eventC">Event Large</string>
     <string name="main_layout_btn_eventD">Event D</string>
     <string name="main_layout_vanet_neighbors"><![CDATA[<b><small>NEIGHBORS</small></b>]]></string>
     <string name="main_layout_vanet_details">
@@ -273,12 +275,22 @@
 		<item>fahrenheit</item>  
 	</string-array>
 	
-    <string name="pingPong_title"><![CDATA[<h1>VANET Ping Pong</h1>]]></string>
+    <string name="pingPong_title"><![CDATA[<h2>VANET Ping Pong</h2>]]></string>
+    <string name="pingPong_label_resultFile">Result file</string>
     <string name="pingPong_label_numberOfPackets">Number of packets to send</string>
-    <string name="pingPong_label_packetPayloadSize">Packet payload size (bytes)</string>
+    <string name="pingPong_label_pause">Pause between sending</string>
     <string name="pingPong_label_opponentAddress">Opponent address (neighbor)</string>
     <string name="pingPong_spinnerPrompt_opponentAddress">Choose opponent...</string>
+    
+    <string name="pingPong_label_packetPayloadSize">Payload size</string>
+    
+    <string name="pingPong_label_distance">Distance</string>
+    
+    <string name="pingPong_label_smartphonePosition">Smartphone position</string>
+    
+    
     <string name="pingPong_button_startPingPong">Start Ping Pong</string>
+    <string name="pingPong_button_manageResults">Results</string>
     <string name="pingPong_results">
         <![CDATA[
         <p>
@@ -293,6 +305,8 @@
         <b><small>Min. response time: </small></b>%5$d
         <br>
         <b><small>Max. response time: </small></b>%6$d
+        <br>
+        <b><small>Ping pong duration: </small></b>%7$d
         </p>
         ]]>
     </string>

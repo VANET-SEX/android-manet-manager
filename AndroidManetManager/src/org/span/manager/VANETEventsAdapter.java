@@ -8,6 +8,7 @@ import java.util.List;
 import org.span.R;
 import org.span.service.vanetsex.VANETEvent;
 import org.span.service.vanetsex.VANETMessage;
+import org.span.service.vanetsex.VANETUtils;
 
 import android.content.Context;
 import android.util.Log;
@@ -22,6 +23,7 @@ public class VANETEventsAdapter extends BaseAdapter {
 
     static class ViewHolder {
         public TextView textView_event;
+        public TextView textView_distance;
         public TextView textView_delay;
         public TextView textView_src_address;
     }
@@ -59,13 +61,14 @@ public class VANETEventsAdapter extends BaseAdapter {
     public View getView(int position, View convertView, ViewGroup parent) {
         View rowView = convertView;
         VANETEvent event = (VANETEvent) getItem(position);
-        Date eventDate = new Date(event.getTime());
+//        Date eventDate = new Date(event.getTime());
 
         if (rowView == null) {
             rowView = inflater.inflate(R.layout.vanet_item_event, null);
 
             ViewHolder viewHolder = new ViewHolder();
             viewHolder.textView_event = (TextView) rowView.findViewById(R.id.textView_event);
+            viewHolder.textView_distance = (TextView) rowView.findViewById(R.id.textView_distance);
             viewHolder.textView_delay = (TextView) rowView.findViewById(R.id.textView_delay);
             viewHolder.textView_src_address = (TextView) rowView.findViewById(R.id.textView_src_address);
             rowView.setTag(viewHolder);
@@ -75,8 +78,10 @@ public class VANETEventsAdapter extends BaseAdapter {
         ViewHolder holder = (ViewHolder) rowView.getTag();
         
         if (event != null) {
-            holder.textView_event.setText(event.getType() + "(" + event.getId() + ") " + ((int)event.getDistance()) + "m");
-            holder.textView_delay.setText("Time: " + simpleDateFormatter.format(eventDate));
+            holder.textView_event.setText(event.getTypeTitle());
+            holder.textView_distance.setText("(" + ((int)event.getDistance()) + "m)");
+//            holder.textView_delay.setText(simpleDateFormatter.format(eventDate));
+            holder.textView_delay.setText(VANETUtils.formatTimeInterval(event.getDelay()));
             holder.textView_src_address.setText(event.getStringOriginatorAddress());
         }
 

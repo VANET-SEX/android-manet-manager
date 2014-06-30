@@ -1,23 +1,24 @@
-package org.span.service.vanetsex;
+package org.span.service.vanetsex.pingpong;
 
 import android.os.Parcel;
 import android.os.Parcelable;
 
 public class VANETPingPongPacket implements Parcelable {
     
-    private int counter;
-    private byte[] dummyData;
+    private int packetIdx;
+    // If request == 0 than it is response. Otherwise it is request.
+    private int request;
+    private byte[] data;
 
     public VANETPingPongPacket() {
     }
     
-    /*
-     * Parcelable protocol.
-     * TODO: See TODO in VANETMessage.java.
-     */
     public VANETPingPongPacket(Parcel in) {
-        this.counter = in.readInt();
-        in.readByteArray(this.dummyData);
+        this.packetIdx = in.readInt();
+        this.request = in.readInt();
+        int length = in.readInt();
+        data = new byte[length];
+        in.readByteArray(this.data);
     }
 
     @Override
@@ -27,8 +28,10 @@ public class VANETPingPongPacket implements Parcelable {
 
     @Override
     public void writeToParcel(Parcel dest, int flags) {
-        dest.writeInt(counter);
-        dest.writeByteArray(dummyData);
+        dest.writeInt(packetIdx);
+        dest.writeInt(request);
+        dest.writeInt(data.length);
+        dest.writeByteArray(data);
     }
     
     public static final Parcelable.Creator<VANETPingPongPacket> CREATOR = new Parcelable.Creator<VANETPingPongPacket>() {
@@ -48,20 +51,28 @@ public class VANETPingPongPacket implements Parcelable {
      * Getters and setters.
      */
     
-    public int getCounter() {
-        return counter;
+    public int getPacketIdx() {
+        return packetIdx;
     }
 
-    public void setCounter(int counter) {
-        this.counter = counter;
+    public void setPacketIdx(int idx) {
+        this.packetIdx = idx;
     }
     
-    public byte[] getDummyData() {
-        return dummyData;
+    public int getRequest() {
+		return request;
+	}
+
+	public void setRequest(int request) {
+		this.request = request;
+	}
+
+	public byte[] getData() {
+        return data;
     }
 
-    public void setDummyData(byte[] dummyData) {
-        this.dummyData = dummyData;
+    public void setData(byte[] data) {
+        this.data = data;
     }
 
     public static Parcelable.Creator<VANETPingPongPacket> getCreator() {

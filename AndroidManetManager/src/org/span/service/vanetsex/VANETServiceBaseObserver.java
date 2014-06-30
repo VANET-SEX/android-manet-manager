@@ -19,4 +19,6 @@ public interface VANETServiceBaseObserver {
     
     public void onVANETServiceDestroy();
     
+    public void onGPSInitialized();
+    
 }

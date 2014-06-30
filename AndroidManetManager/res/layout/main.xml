@@ -271,13 +271,13 @@
             android:ellipsize="start"
             android:text="@string/main_layout_btn_eventC" />
 
-        <Button
+        <!-- Button
             android:id="@+id/btn_eventD"
             android:layout_width="0dp"
             android:layout_height="40dp"
             android:layout_weight="1"
             android:ellipsize="start"
-            android:text="@string/main_layout_btn_eventD" />
+            android:text="@string/main_layout_btn_eventD" / -->
     </LinearLayout>
 
 </RelativeLayout>
